@@ -38,6 +38,7 @@ func TestServer_SimpleApiCalls(t *testing.T) {
 		Expect().
 		Status(http.StatusOK)
 }
+
 func TestServer_CreateRequest(t *testing.T) {
 	cReq := ClientRequest{URL: "http://somedomain.com", Method: "POST"}
 
