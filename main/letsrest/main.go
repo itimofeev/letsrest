@@ -1,18 +1,29 @@
 package main
 
 import (
-	"github.com/itimofeev/letsrest"
 	"github.com/kataras/iris"
 	"net/http"
 )
 
 func main() {
-	s := &Server{}
+	framework := IrisHandler(&HTTPRequester{})
+	framework.Listen(":6111")
+}
 
-	api := iris.Party("/api/v1")
+func IrisHandler(r Requester) *iris.Framework {
+	s := NewServer(r)
+	api := iris.New()
+
+	api.Get("/", func(ctx *iris.Context) {
+		ctx.JSON(http.StatusOK, "OK")
+		return
+	})
+
+	v1 := api.Party("/api/v1")
 	{
-		api.Get("/", func(ctx *iris.Context) {
+		v1.Get("/", func(ctx *iris.Context) {
 			ctx.JSON(http.StatusOK, "OK")
+			return
 		})
 
 		// Fire userNotFoundHandler when Not Found
@@ -21,23 +32,9 @@ func main() {
 
 		// http://localhost:6111/users/42
 		// Method: "GET"
-		api.Put("/request", s.CreateRequest)
+		v1.Put("/requests", s.CreateRequest)
 	}
 
-	iris.Listen(":6111")
-}
-
-type Server struct {
-}
-
-func (s *Server) CreateRequest(ctx *iris.Context) {
-	clientRequest := &letsrest.ClientRequest{}
-
-	if err := ctx.ReadJSON(clientRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
-		return
-	}
-
-	clientResponse := letsrest.ClientResponse{StatusCode: http.StatusOK}
-	ctx.JSON(http.StatusOK, clientResponse)
+	api.Build()
+	return api
 }
