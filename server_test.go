@@ -48,7 +48,25 @@ func TestServer_CreateRequest(t *testing.T) {
 		Status(http.StatusCreated).
 		JSON()
 
-	resp.Object().Value("req_id").Equal(requestID)
+	reqID := resp.Object().Value("req_id")
+	reqID.Equal(requestID)
+
+	//getResp := tester(t).GET("/api/v1/requests/{reqID}", reqID.String()).
+	//	WithJSON(cReq).
+	//	Expect().
+	//	Status(http.StatusOK).
+	//	JSON()
+}
+
+func TestServer_GetNotExistedRequest(t *testing.T) {
+	v := tester(t).GET("/api/v1/requests/{reqID}", "someNotExistedID").
+		WithJSON(cReq).
+		Expect().
+		Status(http.StatusNotFound).
+		JSON()
+
+	v.Object().Value("key").Equal(ReqNotFoundKey)
+	v.Object().ValueEqual("params", Params{"id": "someNotExistedID"})
 }
 
 func tester(t *testing.T) *httpexpect.Expect {

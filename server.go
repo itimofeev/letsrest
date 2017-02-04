@@ -1,6 +1,7 @@
 package letsrest
 
 import (
+	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
 	"net/http"
 )
@@ -17,6 +18,7 @@ type Server struct {
 func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 	srv := NewServer(requester, store)
 	api := iris.New()
+	api.UseFunc(logger.New())
 
 	api.Get("/", func(ctx *iris.Context) {
 		ctx.JSON(http.StatusOK, "OK")
@@ -37,12 +39,12 @@ func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 		// http://localhost:6111/users/42
 		// Method: "GET"
 		v1.Put("/requests", srv.CreateRequest)
+		v1.Get("/requests/:id", srv.GetRequest)
 	}
 
 	api.Build()
 	return api
 }
-
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
 	clientRequest := &ClientRequest{}
@@ -65,4 +67,19 @@ func (s *Server) CreateRequest(ctx *iris.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, v)
+}
+
+func (s *Server) GetRequest(ctx *iris.Context) {
+	cReq, err := s.store.Get(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if cReq == nil {
+		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, cReq)
 }
