@@ -1,20 +1,26 @@
 package letsrest
 
-type ClientRequest struct {
+// информация задаче на выполнение запроса
+type RequestTask struct {
 	ID     string `json:"id"`
 	URL    string `json:"url"`
 	Method string `json:"method"`
 }
 
-type ClientResponse struct {
+// информация об ответе на запрос
+type Response struct {
 	ID string `json:"id"`
 
 	StatusCode int `json:"status_code"`
 }
 
-type RequestData struct {
-	ID string `json:"id"`
+// информация о статусе выполнения запроса вместе с ответом
+type TaskInfo struct {
+	Status   *Info     `json:"info"`
+	Response *Response `json:"response,omitempty"`
+}
 
-	Request  *ClientRequest
-	Response *ClientResponse
+// информация о статусе запроса
+type Info struct {
+	Status string `json:"status"`
 }

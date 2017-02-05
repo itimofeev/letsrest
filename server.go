@@ -48,7 +48,7 @@ func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 }
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
-	clientRequest := &ClientRequest{}
+	clientRequest := &RequestTask{}
 
 	if err := ctx.ReadJSON(clientRequest); err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
@@ -91,5 +91,9 @@ func (s *Server) GetResponse(ctx *iris.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, cResp)
+	if cResp.Status.Status == "done" {
+		ctx.JSON(http.StatusOK, cResp)
+		return
+	}
+	ctx.JSON(http.StatusPartialContent, cResp)
 }

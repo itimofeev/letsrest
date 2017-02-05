@@ -7,7 +7,7 @@ import (
 
 func TestMapRequestStore_CRUD(t *testing.T) {
 	store := NewRequestStore()
-	cReq := &ClientRequest{}
+	cReq := &RequestTask{}
 
 	saved, _ := store.Save(cReq)
 	assert.NotEmpty(t, saved.ID)

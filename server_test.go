@@ -11,7 +11,7 @@ var store = NewRequestStore()
 type testRequester struct {
 }
 
-func (r *testRequester) Do(request *ClientRequest) (*ClientResponse, error) {
+func (r *testRequester) Do(request *RequestTask) (*Response, error) {
 	return nil, nil
 }
 
@@ -50,14 +50,17 @@ func TestServer_GetNotExistedRequest(t *testing.T) {
 func TestServer_GetReadyResponse(t *testing.T) {
 	cReq := createRequest(t)
 
-	resp := &ClientResponse{ID: cReq.ID, StatusCode: 200}
+	resp := &Response{ID: cReq.ID, StatusCode: 200}
 
 	store.SetResponse(cReq.ID, resp)
 
-	tester(t).GET("/api/v1/requests/{reqID}/responses", cReq.ID).
+	obj := tester(t).GET("/api/v1/requests/{reqID}/responses", cReq.ID).
 		Expect().
 		Status(http.StatusOK).
-		JSON().Object().Equal(resp)
+		JSON().Object()
+
+	obj.ValueEqual("response", resp)
+	obj.Value("info").Object().ValueEqual("status", "done")
 }
 
 func TestServer_GetNotReadyResponse(t *testing.T) {
@@ -68,11 +71,11 @@ func TestServer_GetNotReadyResponse(t *testing.T) {
 		Status(http.StatusPartialContent).
 		JSON().Object()
 
-	r.ValueEqual("status", "in_progress")
+	r.Value("info").Object().ValueEqual("status", "in_progress")
 }
 
-func createRequest(t *testing.T) *ClientRequest {
-	cReq := &ClientRequest{URL: "http://somedomain.com", Method: "POST"}
+func createRequest(t *testing.T) *RequestTask {
+	cReq := &RequestTask{URL: "http://somedomain.com", Method: "POST"}
 
 	resp := tester(t).PUT("/api/v1/requests").
 		WithJSON(cReq).

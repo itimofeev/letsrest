@@ -6,16 +6,25 @@ import (
 )
 
 type RequestStore interface {
-	Save(*ClientRequest) (*ClientRequest, error)
-	Get(id string) (*ClientRequest, error)
+	Save(*RequestTask) (*RequestTask, error)
+	Get(id string) (*RequestTask, error)
 	Delete(id string) error
 
-	SetResponse(id string, response *ClientResponse) error
-	GetResponse(id string) (*ClientResponse, error)
+	SetResponse(id string, response *Response) error
+	GetResponse(id string) (*TaskInfo, error)
 }
 
 func NewRequestStore() *MapRequestStore {
 	return &MapRequestStore{store: make(map[string]*RequestData)}
+}
+
+// объект для хранения в store
+type RequestData struct {
+	ID string
+
+	Status   *Info
+	Request  *RequestTask
+	Response *Response
 }
 
 type MapRequestStore struct {
@@ -23,16 +32,16 @@ type MapRequestStore struct {
 	store map[string]*RequestData
 }
 
-func (s *MapRequestStore) Save(in *ClientRequest) (*ClientRequest, error) {
+func (s *MapRequestStore) Save(in *RequestTask) (*RequestTask, error) {
 	s.Lock()
 	defer s.Unlock()
 
 	id, err := GenerateRandomString(10)
 	in.ID = id
-	s.store[id] = &RequestData{ID: id, Request: in}
+	s.store[id] = &RequestData{ID: id, Request: in, Status: &Info{Status: "in_progress"}}
 	return in, err
 }
-func (s *MapRequestStore) Get(id string) (cReq *ClientRequest, err error) {
+func (s *MapRequestStore) Get(id string) (cReq *RequestTask, err error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -51,7 +60,7 @@ func (s *MapRequestStore) Delete(id string) error {
 	return nil
 }
 
-func (s *MapRequestStore) SetResponse(id string, response *ClientResponse) error {
+func (s *MapRequestStore) SetResponse(id string, response *Response) error {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -60,10 +69,11 @@ func (s *MapRequestStore) SetResponse(id string, response *ClientResponse) error
 		return errors.New("request.not.found")
 	}
 	data.Response = response
+	data.Status.Status = "done"
 	return nil
 }
 
-func (s *MapRequestStore) GetResponse(id string) (*ClientResponse, error) {
+func (s *MapRequestStore) GetResponse(id string) (*TaskInfo, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -71,5 +81,5 @@ func (s *MapRequestStore) GetResponse(id string) (*ClientResponse, error) {
 	if data == nil {
 		return nil, nil
 	}
-	return data.Response, nil
+	return &TaskInfo{Response: data.Response, Status: data.Status}, nil
 }

@@ -5,18 +5,16 @@ import (
 )
 
 type Requester interface {
-	Do(request *ClientRequest) (*ClientResponse, error)
+	Do(request *RequestTask) (*Response, error)
 }
 
 type HTTPRequester struct {
-
 }
 
-func (r*HTTPRequester) Do(request *ClientRequest) (cResp *ClientResponse,err error){
-		//req, err := http.NewRequest(cReq.Method, cReq.URL, nil)
+func (r *HTTPRequester) Do(request *RequestTask) (cResp *Response, err error) {
+	//req, err := http.NewRequest(cReq.Method, cReq.URL, nil)
 	//if err != nil {
 	//	return nil, err
 	//}
 	return nil, errors.New("Not implemented")
 }
-
