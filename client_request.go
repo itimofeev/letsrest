@@ -1,7 +1,8 @@
 package letsrest
 
 type ClientRequest struct {
-	URL    string `json:"url" binding:"required"`
+	ID     string `json:"id"`
+	URL    string `json:"url"`
 	Method string `json:"method"`
 }
 

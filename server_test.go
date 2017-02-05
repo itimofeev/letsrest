@@ -7,7 +7,7 @@ import (
 )
 
 var requestID = "hello"
-var cReq *ClientRequest
+var storedReq *ClientRequest
 
 type testRequester struct {
 }
@@ -19,11 +19,12 @@ func (r *testRequester) Do(request *ClientRequest) (*ClientResponse, error) {
 type testRequestStore struct {
 }
 
-func (s testRequestStore) Save(*ClientRequest) (string, error) {
-	return requestID, nil
+func (s testRequestStore) Save(cReq *ClientRequest) (*ClientRequest, error) {
+	cReq.ID = requestID
+	return cReq, nil
 }
 func (s testRequestStore) Get(id string) (*ClientRequest, error) {
-	return nil, nil
+	return storedReq, nil
 }
 func (s testRequestStore) Delete(id string) error {
 	return nil
@@ -48,19 +49,24 @@ func TestServer_CreateRequest(t *testing.T) {
 		Status(http.StatusCreated).
 		JSON()
 
-	reqID := resp.Object().Value("req_id")
-	reqID.Equal(requestID)
+	reqIDValue := resp.Object().Value("id")
+	reqIDValue.Equal(requestID)
+	cReq.ID = reqIDValue.Raw().(string)
 
-	//getResp := tester(t).GET("/api/v1/requests/{reqID}", reqID.String()).
-	//	WithJSON(cReq).
-	//	Expect().
-	//	Status(http.StatusOK).
-	//	JSON()
+	storedReq = &cReq
+
+	getResp := tester(t).GET("/api/v1/requests/{reqID}", cReq.ID).
+		Expect().
+		Status(http.StatusOK).
+		JSON()
+
+	getResp.Object().Equal(cReq)
+	getResp.Object().ValueEqual("id", cReq.ID)
 }
 
 func TestServer_GetNotExistedRequest(t *testing.T) {
+	storedReq = nil
 	v := tester(t).GET("/api/v1/requests/{reqID}", "someNotExistedID").
-		WithJSON(cReq).
 		Expect().
 		Status(http.StatusNotFound).
 		JSON()

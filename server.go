@@ -54,19 +54,13 @@ func (s *Server) CreateRequest(ctx *iris.Context) {
 		return
 	}
 
-	requestID, err := s.store.Save(clientRequest)
+	clientRequest, err := s.store.Save(clientRequest)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
 
-	v := struct {
-		ReqID string `json:"req_id"`
-	}{
-		ReqID: requestID,
-	}
-
-	ctx.JSON(http.StatusCreated, v)
+	ctx.JSON(http.StatusCreated, clientRequest)
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
