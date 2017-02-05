@@ -6,28 +6,13 @@ import (
 	"testing"
 )
 
-var requestID = "hello"
-var storedReq *ClientRequest
+var store = NewRequestStore()
 
 type testRequester struct {
 }
 
 func (r *testRequester) Do(request *ClientRequest) (*ClientResponse, error) {
 	return nil, nil
-}
-
-type testRequestStore struct {
-}
-
-func (s testRequestStore) Save(cReq *ClientRequest) (*ClientRequest, error) {
-	cReq.ID = requestID
-	return cReq, nil
-}
-func (s testRequestStore) Get(id string) (*ClientRequest, error) {
-	return storedReq, nil
-}
-func (s testRequestStore) Delete(id string) error {
-	return nil
 }
 
 func TestServer_SimpleApiCalls(t *testing.T) {
@@ -49,11 +34,10 @@ func TestServer_CreateRequest(t *testing.T) {
 		Status(http.StatusCreated).
 		JSON()
 
-	reqIDValue := resp.Object().Value("id")
-	reqIDValue.Equal(requestID)
-	cReq.ID = reqIDValue.Raw().(string)
+	resp.Object().ContainsKey("id")
+	cReq.ID = resp.Object().Value("id").Raw().(string)
 
-	storedReq = &cReq
+	resp.Object().Equal(cReq)
 
 	getResp := tester(t).GET("/api/v1/requests/{reqID}", cReq.ID).
 		Expect().
@@ -65,7 +49,6 @@ func TestServer_CreateRequest(t *testing.T) {
 }
 
 func TestServer_GetNotExistedRequest(t *testing.T) {
-	storedReq = nil
 	v := tester(t).GET("/api/v1/requests/{reqID}", "someNotExistedID").
 		Expect().
 		Status(http.StatusNotFound).
@@ -76,5 +59,5 @@ func TestServer_GetNotExistedRequest(t *testing.T) {
 }
 
 func tester(t *testing.T) *httpexpect.Expect {
-	return IrisHandler(&testRequester{}, testRequestStore{}).Tester(t)
+	return IrisHandler(&testRequester{}, store).Tester(t)
 }
