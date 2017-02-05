@@ -26,18 +26,7 @@ func TestServer_SimpleApiCalls(t *testing.T) {
 }
 
 func TestServer_CreateRequest(t *testing.T) {
-	cReq := ClientRequest{URL: "http://somedomain.com", Method: "POST"}
-
-	resp := tester(t).PUT("/api/v1/requests").
-		WithJSON(cReq).
-		Expect().
-		Status(http.StatusCreated).
-		JSON()
-
-	resp.Object().ContainsKey("id")
-	cReq.ID = resp.Object().Value("id").Raw().(string)
-
-	resp.Object().Equal(cReq)
+	cReq := createRequest(t)
 
 	getResp := tester(t).GET("/api/v1/requests/{reqID}", cReq.ID).
 		Expect().
@@ -56,6 +45,46 @@ func TestServer_GetNotExistedRequest(t *testing.T) {
 
 	v.Object().Value("key").Equal(ReqNotFoundKey)
 	v.Object().ValueEqual("params", Params{"id": "someNotExistedID"})
+}
+
+func TestServer_GetReadyResponse(t *testing.T) {
+	cReq := createRequest(t)
+
+	resp := &ClientResponse{ID: cReq.ID, StatusCode: 200}
+
+	store.SetResponse(cReq.ID, resp)
+
+	tester(t).GET("/api/v1/requests/{reqID}/responses", cReq.ID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Equal(resp)
+}
+
+func TestServer_GetNotReadyResponse(t *testing.T) {
+	cReq := createRequest(t)
+
+	r := tester(t).GET("/api/v1/requests/{reqID}/responses", cReq.ID).
+		Expect().
+		Status(http.StatusPartialContent).
+		JSON().Object()
+
+	r.ValueEqual("status", "in_progress")
+}
+
+func createRequest(t *testing.T) *ClientRequest {
+	cReq := &ClientRequest{URL: "http://somedomain.com", Method: "POST"}
+
+	resp := tester(t).PUT("/api/v1/requests").
+		WithJSON(cReq).
+		Expect().
+		Status(http.StatusCreated).
+		JSON()
+
+	resp.Object().ContainsKey("id")
+	cReq.ID = resp.Object().Value("id").Raw().(string)
+	resp.Object().Equal(cReq)
+
+	return cReq
 }
 
 func tester(t *testing.T) *httpexpect.Expect {

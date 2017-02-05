@@ -40,6 +40,7 @@ func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 		// Method: "GET"
 		v1.Put("/requests", srv.CreateRequest)
 		v1.Get("/requests/:id", srv.GetRequest)
+		v1.Get("/requests/:id/responses", srv.GetResponse)
 	}
 
 	api.Build()
@@ -76,4 +77,19 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, cReq)
+}
+
+func (s *Server) GetResponse(ctx *iris.Context) {
+	cResp, err := s.store.GetResponse(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if cResp == nil {
+		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, cResp)
 }

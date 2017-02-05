@@ -7,5 +7,14 @@ type ClientRequest struct {
 }
 
 type ClientResponse struct {
+	ID string `json:"id"`
+
 	StatusCode int `json:"status_code"`
+}
+
+type RequestData struct {
+	ID string `json:"id"`
+
+	Request  *ClientRequest
+	Response *ClientResponse
 }
