@@ -15,7 +15,7 @@ type Response struct {
 }
 
 // информация о статусе выполнения запроса вместе с ответом
-type TaskInfo struct {
+type Result struct {
 	Status   *Info     `json:"info"`
 	Response *Response `json:"response,omitempty"`
 }
@@ -23,4 +23,5 @@ type TaskInfo struct {
 // информация о статусе запроса
 type Info struct {
 	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
 }

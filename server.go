@@ -13,6 +13,7 @@ func NewServer(r Requester, s RequestStore) *Server {
 type Server struct {
 	requester Requester
 	store     RequestStore
+	taskCh    <-chan *RequestTask
 }
 
 func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
@@ -45,6 +46,13 @@ func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 
 	api.Build()
 	return api
+}
+
+func (s *Server) ListenForTasks() {
+	for task := range s.taskCh {
+		resp, err := s.requester.Do(task)
+		s.store.SetResponse(task.ID, resp, err)
+	}
 }
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
@@ -91,9 +99,10 @@ func (s *Server) GetResponse(ctx *iris.Context) {
 		return
 	}
 
-	if cResp.Status.Status == "done" {
-		ctx.JSON(http.StatusOK, cResp)
+	if cResp.Status.Status == "in_progress" {
+		ctx.JSON(http.StatusPartialContent, cResp)
 		return
 	}
-	ctx.JSON(http.StatusPartialContent, cResp)
+
+	ctx.JSON(http.StatusOK, cResp)
 }

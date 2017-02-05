@@ -10,8 +10,8 @@ type RequestStore interface {
 	Get(id string) (*RequestTask, error)
 	Delete(id string) error
 
-	SetResponse(id string, response *Response) error
-	GetResponse(id string) (*TaskInfo, error)
+	SetResponse(id string, response *Response, err error) error
+	GetResponse(id string) (*Result, error)
 }
 
 func NewRequestStore() *MapRequestStore {
@@ -22,7 +22,7 @@ func NewRequestStore() *MapRequestStore {
 type RequestData struct {
 	ID string
 
-	Status   *Info
+	Info     *Info
 	Request  *RequestTask
 	Response *Response
 }
@@ -38,7 +38,7 @@ func (s *MapRequestStore) Save(in *RequestTask) (*RequestTask, error) {
 
 	id, err := GenerateRandomString(10)
 	in.ID = id
-	s.store[id] = &RequestData{ID: id, Request: in, Status: &Info{Status: "in_progress"}}
+	s.store[id] = &RequestData{ID: id, Request: in, Info: &Info{Status: "in_progress"}}
 	return in, err
 }
 func (s *MapRequestStore) Get(id string) (cReq *RequestTask, err error) {
@@ -60,7 +60,7 @@ func (s *MapRequestStore) Delete(id string) error {
 	return nil
 }
 
-func (s *MapRequestStore) SetResponse(id string, response *Response) error {
+func (s *MapRequestStore) SetResponse(id string, response *Response, err error) error {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -68,12 +68,17 @@ func (s *MapRequestStore) SetResponse(id string, response *Response) error {
 	if data == nil {
 		return errors.New("request.not.found")
 	}
+	if err != nil {
+		data.Info.Status = "error"
+		data.Info.Error = err.Error()
+	} else {
+		data.Info.Status = "done"
+	}
 	data.Response = response
-	data.Status.Status = "done"
 	return nil
 }
 
-func (s *MapRequestStore) GetResponse(id string) (*TaskInfo, error) {
+func (s *MapRequestStore) GetResponse(id string) (*Result, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -81,5 +86,5 @@ func (s *MapRequestStore) GetResponse(id string) (*TaskInfo, error) {
 	if data == nil {
 		return nil, nil
 	}
-	return &TaskInfo{Response: data.Response, Status: data.Status}, nil
+	return &Result{Response: data.Response, Status: data.Info}, nil
 }

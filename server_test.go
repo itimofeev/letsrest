@@ -1,6 +1,7 @@
 package letsrest
 
 import (
+	"errors"
 	"github.com/gavv/httpexpect"
 	"net/http"
 	"testing"
@@ -52,7 +53,7 @@ func TestServer_GetReadyResponse(t *testing.T) {
 
 	resp := &Response{ID: cReq.ID, StatusCode: 200}
 
-	store.SetResponse(cReq.ID, resp)
+	store.SetResponse(cReq.ID, resp, nil)
 
 	obj := tester(t).GET("/api/v1/requests/{reqID}/responses", cReq.ID).
 		Expect().
@@ -61,6 +62,20 @@ func TestServer_GetReadyResponse(t *testing.T) {
 
 	obj.ValueEqual("response", resp)
 	obj.Value("info").Object().ValueEqual("status", "done")
+}
+
+func TestServer_GetErrorResponse(t *testing.T) {
+	cReq := createRequest(t)
+
+	store.SetResponse(cReq.ID, nil, errors.New("error.while.do.request"))
+
+	obj := tester(t).GET("/api/v1/requests/{reqID}/responses", cReq.ID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object()
+
+	obj.Value("info").Object().ValueEqual("status", "error")
+	obj.Value("info").Object().ValueEqual("error", "error.while.do.request")
 }
 
 func TestServer_GetNotReadyResponse(t *testing.T) {
