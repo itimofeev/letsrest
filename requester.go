@@ -8,6 +8,10 @@ type Requester interface {
 	Do(request *RequestTask) (*Response, error)
 }
 
+func NewHTTPRequester() *HTTPRequester {
+	return &HTTPRequester{}
+}
+
 type HTTPRequester struct {
 }
 

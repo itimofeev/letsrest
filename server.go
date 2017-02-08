@@ -37,8 +37,6 @@ func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 		// inside http://localhost:6111/users/*anything
 		//api.OnError(404, userNotFoundHandler)
 
-		// http://localhost:6111/users/42
-		// Method: "GET"
 		v1.Put("/requests", srv.CreateRequest)
 		v1.Get("/requests/:id", srv.GetRequest)
 		v1.Get("/requests/:id/responses", srv.GetResponse)
