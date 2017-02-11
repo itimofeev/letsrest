@@ -39,11 +39,11 @@ func Must(err error, msg ...interface{}) {
 	}
 }
 
-func PrintJson(i interface{}) {
-	fmt.Println("JSON: ", GetJson(i))
+func PrintJSON(i interface{}) {
+	fmt.Println("JSON: ", GetJSON(i))
 }
 
-func GetJson(i interface{}) string {
+func GetJSON(i interface{}) string {
 	j, err := json.Marshal(i)
 	Must(err, "Ma")
 	return string(j)

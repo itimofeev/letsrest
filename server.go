@@ -7,16 +7,16 @@ import (
 )
 
 func NewServer(r Requester, s RequestStore) *Server {
-	return &Server{requester: r, store: s}
+	return &Server{requester: r, store: s, taskCh: make(chan *RequestTask, 100)}
 }
 
 type Server struct {
 	requester Requester
 	store     RequestStore
-	taskCh    <-chan *RequestTask
+	taskCh    chan *RequestTask
 }
 
-func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
+func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Server) {
 	srv := NewServer(requester, store)
 	api := iris.New()
 	api.UseFunc(logger.New())
@@ -40,9 +40,11 @@ func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 		v1.Put("/requests", srv.CreateRequest)
 		v1.Get("/requests/:id", srv.GetRequest)
 		v1.Get("/requests/:id/responses", srv.GetResponse)
+
+		v1.Get("/test", srv.Test)
 	}
 
-	return api
+	return api, srv
 }
 
 func (s *Server) ListenForTasks() {
@@ -53,20 +55,22 @@ func (s *Server) ListenForTasks() {
 }
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
-	clientRequest := &RequestTask{}
+	requestTask := &RequestTask{}
 
-	if err := ctx.ReadJSON(clientRequest); err != nil {
+	if err := ctx.ReadJSON(requestTask); err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
 
-	clientRequest, err := s.store.Save(clientRequest)
+	requestTask, err := s.store.Save(requestTask)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, clientRequest)
+	s.taskCh <- requestTask
+
+	ctx.JSON(http.StatusCreated, requestTask)
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
@@ -102,4 +106,8 @@ func (s *Server) GetResponse(ctx *iris.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, cResp)
+}
+
+func (s *Server) Test(ctx *iris.Context) {
+	ctx.JSON(http.StatusOK, ctx.Request.URL.String())
 }

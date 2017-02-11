@@ -106,7 +106,7 @@ func createRequest(t *testing.T) *RequestTask {
 }
 
 func tester(t *testing.T) *httpexpect.Expect {
-	handler := IrisHandler(&testRequester{}, store)
+	handler, _ := IrisHandler(&testRequester{}, store)
 	handler.Build()
 	return httpexpect.WithConfig(httpexpect.Config{
 		BaseURL: "http://example.com",
