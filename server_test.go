@@ -106,5 +106,17 @@ func createRequest(t *testing.T) *RequestTask {
 }
 
 func tester(t *testing.T) *httpexpect.Expect {
-	return IrisHandler(&testRequester{}, store).Tester(t)
+	handler := IrisHandler(&testRequester{}, store)
+	handler.Build()
+	return httpexpect.WithConfig(httpexpect.Config{
+		BaseURL: "http://example.com",
+		Client: &http.Client{
+			Transport: httpexpect.NewBinder(handler.Router),
+			Jar:       httpexpect.NewJar(),
+		},
+		Reporter: httpexpect.NewAssertReporter(t),
+		Printers: []httpexpect.Printer{
+			httpexpect.NewDebugPrinter(t, true),
+		},
+	})
 }

@@ -42,7 +42,6 @@ func IrisHandler(requester Requester, store RequestStore) *iris.Framework {
 		v1.Get("/requests/:id/responses", srv.GetResponse)
 	}
 
-	api.Build()
 	return api
 }
 
