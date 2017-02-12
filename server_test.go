@@ -93,7 +93,9 @@ func createRequest(t *testing.T) *RequestTask {
 	cReq := &RequestTask{URL: "http://somedomain.com", Method: "POST"}
 
 	resp := tester(t).PUT("/api/v1/requests").
-		WithJSON(cReq).
+		WithMultipart().
+		WithFormField("requestTask", GetJSON(cReq)).
+		WithFileBytes("fileBody", "fileBody", []byte("hello, there!")).
 		Expect().
 		Status(http.StatusCreated).
 		JSON()

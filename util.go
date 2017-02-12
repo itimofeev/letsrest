@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 )
 
 // GenerateRandomBytes returns securely generated random bytes.

@@ -1,13 +1,24 @@
 package letsrest
 
 import (
+	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
 	"net/http"
+	"os"
 	"strings"
 )
 
+var log = logrus.New()
+
 func NewServer(r Requester, s RequestStore) *Server {
+	log.Out = os.Stdout
+	formatter := new(logrus.TextFormatter)
+	formatter.ForceColors = true
+	log.Formatter = formatter
+	log.Level = logrus.DebugLevel
+
 	return &Server{requester: r, store: s, taskCh: make(chan *RequestTask, 100)}
 }
 
@@ -59,12 +70,33 @@ func (s *Server) ListenForTasks() {
 func (s *Server) CreateRequest(ctx *iris.Context) {
 	requestTask := &RequestTask{}
 
-	if err := ctx.ReadJSON(requestTask); err != nil {
+	err := ctx.Request.ParseMultipartForm(1000000000)
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
+		log.WithError(err).Debug("Parse form")
 		return
 	}
 
-	requestTask, err := s.store.Save(requestTask)
+	requestTaskJson := ctx.FormValue("requestTask")
+	if err := json.Unmarshal([]byte(requestTaskJson), requestTask); err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		log.WithError(err).Error("Unmarshal request task")
+		return
+	}
+
+	file, _, err := ctx.FormFile("fileBody")
+	if err == nil && file != nil {
+		var data []byte
+		_, err := file.Read(data)
+		if err != nil {
+			log.WithError(err).Error("Error reading fileBody")
+			ctx.JSON(http.StatusBadRequest, err.Error())
+			return
+		}
+		requestTask.Body = data
+	}
+
+	requestTask, err = s.store.Save(requestTask)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return

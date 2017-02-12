@@ -5,6 +5,7 @@ type RequestTask struct {
 	ID     string `json:"id"`
 	URL    string `json:"url"`
 	Method string `json:"method"`
+	Body   []byte `json:"-"`
 }
 
 // информация об ответе на запрос
