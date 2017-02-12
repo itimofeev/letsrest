@@ -1,6 +1,8 @@
 package letsrest
 
 import (
+	"bytes"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -18,7 +20,12 @@ type HTTPRequester struct {
 }
 
 func (r *HTTPRequester) Do(request *RequestTask) (cResp *Response, err error) {
-	req, err := http.NewRequest(request.Method, request.URL, nil)
+	var reader io.Reader
+	if len(request.Body) > 0 {
+		reader = bytes.NewReader(request.Body)
+	}
+
+	req, err := http.NewRequest(request.Method, request.URL, reader)
 	if err != nil {
 		return nil, err
 	}
