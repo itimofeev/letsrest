@@ -4,6 +4,7 @@ import (
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
 	"net/http"
+	"strings"
 )
 
 func NewServer(r Requester, s RequestStore) *Server {
@@ -40,6 +41,7 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 		v1.Put("/requests", srv.CreateRequest)
 		v1.Get("/requests/:id", srv.GetRequest)
 		v1.Get("/requests/:id/responses", srv.GetResponse)
+		v1.Get("/requests/:id/body", srv.GetResponseBody)
 
 		v1.Get("/test", srv.Test)
 	}
@@ -106,6 +108,44 @@ func (s *Server) GetResponse(ctx *iris.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, cResp)
+}
+
+func (s *Server) GetResponseBody(ctx *iris.Context) {
+	cResp, err := s.store.GetResponse(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if cResp == nil {
+		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
+		return
+	}
+
+	if cResp.Status.Status == "in_progress" {
+		ctx.JSON(http.StatusPartialContent, cResp)
+		return
+	}
+
+	h := findHeader("Content-Type", cResp.Response.Headers)
+
+	if h != nil {
+		ctx.ResponseWriter.Header().Add("Content-Type", h.Value)
+	} else {
+		ctx.ResponseWriter.Header().Add("Content-Type", "application/octet-stream")
+	}
+	ctx.ResponseWriter.WriteHeader(http.StatusOK)
+	ctx.ResponseWriter.Write(cResp.Response.Body)
+}
+
+func findHeader(name string, headers []Header) *Header {
+	loweredName := strings.ToLower(name)
+	for _, header := range headers {
+		if strings.ToLower(header.Name) == loweredName {
+			return &header
+		}
+	}
+	return nil
 }
 
 func (s *Server) Test(ctx *iris.Context) {

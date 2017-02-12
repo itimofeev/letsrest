@@ -1,7 +1,9 @@
 package letsrest
 
 import (
+	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 type Requester interface {
@@ -27,9 +29,22 @@ func (r *HTTPRequester) Do(request *RequestTask) (cResp *Response, err error) {
 		return nil, err
 	}
 
+	var h []Header
+	for key, value := range resp.Header {
+		h = append(h, Header{Name: key, Value: strings.Join(value, ", ")})
+	}
+
+	bodyData, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
 	cResp = &Response{
 		ID:         request.ID,
 		StatusCode: resp.StatusCode,
+		Headers:    h,
+		Body:       bodyData,
+		BodyLen:    len(bodyData),
 	}
 	return
 }

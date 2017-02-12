@@ -11,7 +11,15 @@ type RequestTask struct {
 type Response struct {
 	ID string `json:"id"`
 
-	StatusCode int `json:"status_code"`
+	StatusCode int      `json:"status_code"`
+	Headers    []Header `json:"headers"`
+	BodyLen    int      `json:"body_len"`
+	Body       []byte   `json:"-"`
+}
+
+type Header struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 // информация о статусе выполнения запроса вместе с ответом
