@@ -2,10 +2,11 @@ package letsrest
 
 // информация задаче на выполнение запроса
 type RequestTask struct {
-	ID     string `json:"id"`
-	URL    string `json:"url"`
-	Method string `json:"method"`
-	Body   []byte `json:"-"`
+	ID      string   `json:"id"`
+	URL     string   `json:"url"`
+	Method  string   `json:"method"`
+	Headers []Header `json:"headers"`
+	Body    []byte   `json:"-"`
 }
 
 // информация об ответе на запрос

@@ -30,6 +30,10 @@ func (r *HTTPRequester) Do(request *RequestTask) (cResp *Response, err error) {
 		return nil, err
 	}
 
+	for _, header := range request.Headers {
+		req.Header.Add(header.Name, header.Value)
+	}
+
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
