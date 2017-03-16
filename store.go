@@ -9,6 +9,7 @@ type RequestStore interface {
 	Save(*RequestTask) (*RequestTask, error)
 	Get(id string) (*RequestTask, error)
 	Delete(id string) error
+	List() ([]RequestTask, error)
 
 	SetResponse(id string, response *Response, err error) error
 	GetResponse(id string) (*Result, error)
@@ -29,7 +30,8 @@ type RequestData struct {
 
 type MapRequestStore struct {
 	sync.RWMutex
-	store map[string]*RequestData
+	store    map[string]*RequestData
+	taskList []RequestData
 }
 
 func (s *MapRequestStore) Save(in *RequestTask) (*RequestTask, error) {
@@ -38,9 +40,12 @@ func (s *MapRequestStore) Save(in *RequestTask) (*RequestTask, error) {
 
 	id, err := GenerateRandomString(10)
 	in.ID = id
+	rd := RequestData{ID: id, Request: in, Info: &Info{Status: "in_progress"}}
 	s.store[id] = &RequestData{ID: id, Request: in, Info: &Info{Status: "in_progress"}}
+	s.taskList = append(s.taskList, rd)
 	return in, err
 }
+
 func (s *MapRequestStore) Get(id string) (cReq *RequestTask, err error) {
 	s.RLock()
 	defer s.RUnlock()
@@ -49,6 +54,17 @@ func (s *MapRequestStore) Get(id string) (cReq *RequestTask, err error) {
 	if data != nil {
 		cReq = data.Request
 	}
+	return
+}
+func (s *MapRequestStore) List() (taskList []RequestTask, err error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	taskList = make([]RequestTask, len(s.taskList))
+	for i, value := range s.taskList {
+		taskList[len(s.taskList)-i-1] = *value.Request
+	}
+
 	return
 }
 
