@@ -53,6 +53,7 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 		v1.Get("/requests/:id", srv.GetRequest)
 		v1.Get("/requests/:id/responses", srv.GetResponse)
 		v1.Get("/requests/:id/body", srv.GetResponseBody)
+		v1.Get("/requests", srv.GetRequestTaskList)
 
 		v1.Get("/test", srv.Test)
 	}
@@ -168,6 +169,15 @@ func (s *Server) GetResponseBody(ctx *iris.Context) {
 	}
 	ctx.ResponseWriter.WriteHeader(http.StatusOK)
 	ctx.ResponseWriter.Write(cResp.Response.Body)
+}
+
+func (s *Server) GetRequestTaskList(ctx *iris.Context) {
+	taskList, err := s.store.List()
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+	ctx.JSON(http.StatusOK, taskList)
 }
 
 func findHeader(name string, headers []Header) *Header {
