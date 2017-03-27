@@ -1,0 +1,9 @@
+version: '2'
+services:
+  letsrest:
+    image: letsrest
+    env_file: prod.env
+    volumes:
+      - /var/log/letsrest:/var/log/letsrest
+    depends_on:
+      - db
