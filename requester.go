@@ -45,17 +45,25 @@ func (r *HTTPRequester) Do(request *RequestTask) (cResp *Response, err error) {
 		h = append(h, Header{Name: key, Value: strings.Join(value, ", ")})
 	}
 
+	contentTypeHeader := findHeader("Content-Type", h)
+	contentType := ""
+	if contentTypeHeader != nil {
+		contentType = contentTypeHeader.Value
+	}
+
+	// TODO ограничение на размер ответа
 	bodyData, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	cResp = &Response{
-		ID:         request.ID,
-		StatusCode: resp.StatusCode,
-		Headers:    h,
-		Body:       bodyData,
-		BodyLen:    len(bodyData),
+		ID:          request.ID,
+		StatusCode:  resp.StatusCode,
+		Headers:     h,
+		Body:        bodyData,
+		BodyLen:     len(bodyData),
+		ContentType: contentType,
 	}
 	return
 }

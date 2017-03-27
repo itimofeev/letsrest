@@ -13,10 +13,11 @@ type RequestTask struct {
 type Response struct {
 	ID string `json:"id"`
 
-	StatusCode int      `json:"status_code"`
-	Headers    []Header `json:"headers"`
-	BodyLen    int      `json:"body_len"`
-	Body       []byte   `json:"-"`
+	StatusCode  int      `json:"status_code"`
+	Headers     []Header `json:"headers"`
+	BodyLen     int      `json:"body_len"`
+	ContentType string   `json:"content_type"`
+	Body        []byte   `json:"-"`
 }
 
 type Header struct {

@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const MAX_BODY_SIZE = 1 * 1024 * 1024
+
 var log = logrus.New()
 
 func NewServer(r Requester, s RequestStore) *Server {
@@ -71,7 +73,7 @@ func (s *Server) ListenForTasks() {
 func (s *Server) CreateRequest(ctx *iris.Context) {
 	requestTask := &RequestTask{}
 
-	err := ctx.Request.ParseMultipartForm(1000000000)
+	err := ctx.Request.ParseMultipartForm(MAX_BODY_SIZE)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		log.WithError(err).Debug("Parse form")
