@@ -2,6 +2,7 @@ package letsrest
 
 import (
 	"errors"
+	"github.com/speps/go-hashids"
 	"sync"
 )
 
@@ -16,7 +17,11 @@ type RequestStore interface {
 }
 
 func NewRequestStore() *MapRequestStore {
-	return &MapRequestStore{store: make(map[string]*RequestData)}
+	hd := hashids.NewData()
+	hd.Salt = "this is my salt"
+	hd.MinLength = 20
+
+	return &MapRequestStore{store: make(map[string]*RequestData), hd: hd}
 }
 
 // объект для хранения в store
@@ -32,18 +37,24 @@ type MapRequestStore struct {
 	sync.RWMutex
 	store    map[string]*RequestData
 	taskList []RequestData
+	hd       *hashids.HashIDData
 }
 
 func (s *MapRequestStore) Save(in *RequestTask) (*RequestTask, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	id, err := GenerateRandomString(10)
+	id, err := s.generateId()
 	in.ID = id
 	rd := RequestData{ID: id, Request: in, Info: &Info{Status: "in_progress"}}
 	s.store[id] = &RequestData{ID: id, Request: in, Info: &Info{Status: "in_progress"}}
 	s.taskList = append(s.taskList, rd)
 	return in, err
+}
+
+func (s *MapRequestStore) generateId() (string, error) {
+	h := hashids.NewWithData(s.hd)
+	return h.Encode([]int{len(s.store)})
 }
 
 func (s *MapRequestStore) Get(id string) (cReq *RequestTask, err error) {

@@ -7,6 +7,11 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.11.2-1-g3f603f4",
+			"Rev": "3f603f494d61c73457fb234161d8982b9f0f0b71"
+		},
+		{
 			"ImportPath": "github.com/ajg/form",
 			"Comment": "v1.5-1-g523a5da",
 			"Rev": "523a5da1a92f01b01f840b61689c0340a0243532"
@@ -226,6 +231,11 @@
 			"Rev": "1dba4b3954bc059efc3991ec364f9f9a35f597d2"
 		},
 		{
+			"ImportPath": "github.com/speps/go-hashids",
+			"Comment": "v1.0.0-15-g6fe7228",
+			"Rev": "6fe72284916ad2a7ec7b7dc89fd7b124809b7eb8"
+		},
+		{
 			"ImportPath": "github.com/square/go-jose",
 			"Rev": "50df5ca198e569d06795909c091ac0cea62e925a"
 		},
@@ -314,6 +324,10 @@
 		{
 			"ImportPath": "golang.org/x/net/publicsuffix",
 			"Rev": "61557ac0112b576429a0df080e1c2cef5dfbb642"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "aaabbdc969c3935a2a7f61efac801e7163c73a2a"
 		},
 		{
 			"ImportPath": "golang.org/x/time/rate",
