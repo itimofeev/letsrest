@@ -8,7 +8,7 @@ import (
 )
 
 type Requester interface {
-	Do(request *Request) (*Response, error)
+	Do(request *RequestData) (*Response, error)
 }
 
 func NewHTTPRequester() *HTTPRequester {
@@ -18,7 +18,7 @@ func NewHTTPRequester() *HTTPRequester {
 type HTTPRequester struct {
 }
 
-func (r *HTTPRequester) Do(request *Request) (cResp *Response, err error) {
+func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 	var reader io.Reader
 	//if len(request.Body) > 0 {
 	//	reader = bytes.NewReader(request.Body)

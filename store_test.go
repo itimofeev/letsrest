@@ -8,7 +8,7 @@ import (
 func TestMapRequestStore_CRUD(t *testing.T) {
 	store := NewRequestStore()
 
-	bucket, _ := store.CreateBucket("somename")
+	bucket, _ := store.CreateRequest("somename")
 	assert.NotEmpty(t, bucket.ID)
 
 	loaded, _ := store.Get(bucket.ID)

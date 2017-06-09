@@ -1,16 +1,16 @@
 package letsrest
 
 // информация задаче на выполнение запроса
-type Bucket struct {
+type Request struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 
-	Request  *Request    `json:"request,omitempty"`
-	Response *Response   `json:"response,omitempty"`
-	Status   *ExecStatus `json:"status"`
+	RequestData *RequestData `json:"request,omitempty"`
+	Response    *Response    `json:"response,omitempty"`
+	Status      *ExecStatus  `json:"status"`
 }
 
-type Request struct {
+type RequestData struct {
 	URL     string   `json:"url"`
 	Method  string   `json:"method"`
 	Headers []Header `json:"headers"`

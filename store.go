@@ -7,11 +7,11 @@ import (
 )
 
 type RequestStore interface {
-	CreateBucket(name string) (*Bucket, error)
-	CreateRequest(id string, req *Request) error
-	Get(id string) (*Bucket, error)
+	CreateRequest(name string) (*Request, error)
+	ExecRequest(id string, req *RequestData) error
+	Get(id string) (*Request, error)
 	Delete(id string) error
-	List() ([]Bucket, error)
+	List() ([]Request, error)
 
 	SetResponse(id string, response *Response, err error) error
 }
@@ -21,27 +21,27 @@ func NewRequestStore() *MapRequestStore {
 	hd.Salt = "this is my salt"
 	hd.MinLength = 20
 
-	return &MapRequestStore{store: make(map[string]*Bucket), hd: hd}
+	return &MapRequestStore{store: make(map[string]*Request), hd: hd}
 }
 
 type MapRequestStore struct {
 	sync.RWMutex
-	store   map[string]*Bucket
-	buckets []Bucket
-	hd      *hashids.HashIDData
+	store    map[string]*Request
+	requests []Request
+	hd       *hashids.HashIDData
 }
 
-func (s *MapRequestStore) CreateBucket(name string) (*Bucket, error) {
+func (s *MapRequestStore) CreateRequest(name string) (*Request, error) {
 	id, err := s.generateId()
 	Must(err, "s.generateId()")
-	bucket := Bucket{ID: id, Status: &ExecStatus{Status: "idle"}}
+	request := Request{ID: id, Status: &ExecStatus{Status: "idle"}}
 
 	s.Lock()
 	defer s.Unlock()
 
-	s.store[id] = &bucket
-	s.buckets = append(s.buckets, bucket)
-	return &bucket, err
+	s.store[id] = &request
+	s.requests = append(s.requests, request)
+	return &request, err
 }
 
 func (s *MapRequestStore) generateId() (string, error) {
@@ -49,18 +49,18 @@ func (s *MapRequestStore) generateId() (string, error) {
 	return h.Encode([]int{len(s.store)})
 }
 
-func (s *MapRequestStore) CreateRequest(id string, r *Request) error {
+func (s *MapRequestStore) ExecRequest(id string, r *RequestData) error {
 	s.RLock()
 	defer s.RUnlock()
 	if data, ok := s.store[id]; ok {
-		data.Request = r
+		data.RequestData = r
 		return nil
 	}
 
-	return errors.New("bucket not found")
+	return errors.New("request not found")
 }
 
-func (s *MapRequestStore) Get(id string) (bucket *Bucket, err error) {
+func (s *MapRequestStore) Get(id string) (request *Request, err error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -70,11 +70,11 @@ func (s *MapRequestStore) Get(id string) (bucket *Bucket, err error) {
 	return nil, nil
 }
 
-func (s *MapRequestStore) List() (taskList []Bucket, err error) {
+func (s *MapRequestStore) List() (requests []Request, err error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	return s.buckets[:], nil
+	return s.requests[:], nil
 }
 
 func (s *MapRequestStore) Delete(id string) error {
@@ -82,9 +82,9 @@ func (s *MapRequestStore) Delete(id string) error {
 	defer s.Unlock()
 
 	delete(s.store, id)
-	for i := range s.buckets {
-		if s.buckets[i].ID == id {
-			s.buckets = append(s.buckets[:i], s.buckets[i+1:]...)
+	for i := range s.requests {
+		if s.requests[i].ID == id {
+			s.requests = append(s.requests[:i], s.requests[i+1:]...)
 		}
 	}
 
