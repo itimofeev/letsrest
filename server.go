@@ -5,9 +5,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
+	"github.com/speps/go-hashids"
+	"golang.org/x/time/rate"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 const MAX_BODY_SIZE = 1 * 1024 * 1024
@@ -21,13 +24,17 @@ func NewServer(r Requester, s RequestStore) *Server {
 	log.Formatter = formatter
 	log.Level = logrus.DebugLevel
 
-	return &Server{requester: r, store: s, taskCh: make(chan *RequestTask, 100)}
+	//anonymLimiter := rate.NewLimiter(rate.Every(time.Duration(200)*time.Millisecond), 5)
+	anonymLimiter := rate.NewLimiter(rate.Every(time.Duration(5)*time.Second), 1)
+
+	return &Server{requester: r, store: s, taskCh: make(chan *RequestTask, 100), anonymLimiter: anonymLimiter}
 }
 
 type Server struct {
-	requester Requester
-	store     RequestStore
-	taskCh    chan *RequestTask
+	requester     Requester
+	store         RequestStore
+	taskCh        chan *RequestTask
+	anonymLimiter *rate.Limiter
 }
 
 func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Server) {
@@ -51,11 +58,13 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 		// inside http://localhost:6111/users/*anything
 		//api.OnError(404, userNotFoundHandler)
 
-		v1.Put("/requests", srv.CreateRequest)
-		v1.Get("/requests/:id", srv.GetRequest)
-		v1.Get("/requests/:id/responses", srv.GetResponse)
-		v1.Get("/requests/:id/body", srv.GetResponseBody)
-		v1.Get("/requests", srv.GetRequestTaskList)
+		requests := v1.Party("/requests")
+
+		requests.Put("", srv.CheckAuthToken, srv.CreateRequest)
+		requests.Get("/:id", srv.GetRequest)
+		requests.Get("/:id/responses", srv.GetResponse)
+		requests.Get("/:id/body", srv.GetResponseBody)
+		requests.Get("", srv.GetRequestTaskList)
 
 		v1.Get("/test", srv.Test)
 	}
@@ -68,6 +77,25 @@ func (s *Server) ListenForTasks() {
 		resp, err := s.requester.Do(task)
 		s.store.SetResponse(task.ID, resp, err)
 	}
+}
+
+func (s *Server) CheckAuthToken(ctx *iris.Context) {
+	_, ok := ctx.Request.Header["Authorization"]
+	// для неавторизированных пользователей проверяем, что лимит запросов не превышен
+	if !ok {
+		if !s.anonymLimiter.Allow() {
+			ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
+			ctx.ResponseWriter.WriteHeader(http.StatusTooManyRequests)
+			ctx.ResponseWriter.Write([]byte("You have reached maximum request limit."))
+			ctx.StopExecution()
+			return
+		}
+
+		authToken, err := hashids.New().Encode([]int{time.Now().Second()})
+		Must(err, "hashids.New().Encode([]int{time.Now().Second()})")
+		ctx.ResponseWriter.Header().Add("X-LetsRest-AuthToken", authToken)
+	}
+	ctx.Next()
 }
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
