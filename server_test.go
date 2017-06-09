@@ -26,7 +26,7 @@ func TestServer_SimpleApiCalls(t *testing.T) {
 		Status(http.StatusOK)
 }
 
-func TestServer_CreateRequest(t *testing.T) {
+func TestServer_CreateBucket(t *testing.T) {
 	bucket := createBucket(t)
 
 	getResp := tester(t).GET("/api/v1/buckets/{ID}", bucket.ID).
@@ -35,6 +35,7 @@ func TestServer_CreateRequest(t *testing.T) {
 		JSON()
 
 	getResp.Object().ValueEqual("id", bucket.ID)
+	getResp.Object().Value("status").Object().ValueEqual("status", "idle")
 }
 
 func TestServer_GetNotExistedRequest(t *testing.T) {
@@ -58,8 +59,8 @@ func TestServer_GetReadyResponse(t *testing.T) {
 		Status(http.StatusOK).
 		JSON().Object()
 
-	obj.Equal(resp)
-	obj.ValueEqual("status_code", 200)
+	obj.Value("response").Equal(resp)
+	obj.Value("status").Object().ValueEqual("status", "done")
 }
 
 func TestServer_GetErrorResponse(t *testing.T) {
@@ -81,10 +82,10 @@ func TestServer_GetNotReadyResponse(t *testing.T) {
 
 	r := tester(t).GET("/api/v1/buckets/{ID}/responses", bucket.ID).
 		Expect().
-		Status(http.StatusPartialContent).
+		Status(http.StatusOK).
 		JSON().Object()
 
-	r.Value("status").Object().ValueEqual("status", "in_progress")
+	r.Value("status").Object().ValueEqual("status", "idle")
 }
 
 func createBucket(t *testing.T) *Bucket {

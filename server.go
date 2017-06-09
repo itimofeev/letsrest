@@ -59,6 +59,7 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 		requests := v1.Party("/buckets")
 
 		requests.Post("", srv.CreateBucket)
+		requests.Post("/:id/requests", srv.CreateRequest)
 		requests.Get("/:id", srv.GetRequest)
 		requests.Get("/:id/responses", srv.GetResponse)
 		requests.Get("", srv.GetRequestTaskList)
@@ -112,6 +113,22 @@ func (s *Server) CreateBucket(ctx *iris.Context) {
 	ctx.JSON(http.StatusCreated, bucket)
 }
 
+
+func (s *Server) CreateRequest(ctx *iris.Context) {
+	req := &Request{}
+	err := ctx.ReadJSON(req)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+	err = s.store.CreateRequest(ctx.Param("id"), req)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+	ctx.JSON(http.StatusCreated, "")
+}
+
 func (s *Server) GetRequest(ctx *iris.Context) {
 	cReq, err := s.store.Get(ctx.Param("id"))
 	if err != nil {
@@ -139,14 +156,7 @@ func (s *Server) GetResponse(ctx *iris.Context) {
 		return
 	}
 
-	responseData := ResponseData{Response: bucket.Response, Status: bucket.Status}
-
-	if bucket.Status.Status == "in_progress" {
-		ctx.JSON(http.StatusPartialContent, responseData)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, responseData)
+	ctx.JSON(http.StatusOK, ResponseData{Response: bucket.Response, Status: bucket.Status})
 }
 
 func (s *Server) GetRequestTaskList(ctx *iris.Context) {

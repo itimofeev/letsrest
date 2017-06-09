@@ -8,7 +8,7 @@ import (
 
 type RequestStore interface {
 	CreateBucket(name string) (*Bucket, error)
-	CreateRequest(*Bucket, *Request) error
+	CreateRequest(id string, req *Request) error
 	Get(id string) (*Bucket, error)
 	Delete(id string) error
 	List() ([]Bucket, error)
@@ -34,7 +34,7 @@ type MapRequestStore struct {
 func (s *MapRequestStore) CreateBucket(name string) (*Bucket, error) {
 	id, err := s.generateId()
 	Must(err, "s.generateId()")
-	bucket := Bucket{ID: id, Status: &ExecStatus{Status: "in_progress"}}
+	bucket := Bucket{ID: id, Status: &ExecStatus{Status: "idle"}}
 
 	s.Lock()
 	defer s.Unlock()
@@ -49,8 +49,15 @@ func (s *MapRequestStore) generateId() (string, error) {
 	return h.Encode([]int{len(s.store)})
 }
 
-func (s *MapRequestStore) CreateRequest(*Bucket, *Request) error {
-	return nil
+func (s *MapRequestStore) CreateRequest(id string, r *Request) error {
+	s.RLock()
+	defer s.RUnlock()
+	if data, ok := s.store[id]; ok {
+		data.Request = r
+		return nil
+	}
+
+	return errors.New("bucket not found")
 }
 
 func (s *MapRequestStore) Get(id string) (bucket *Bucket, err error) {
