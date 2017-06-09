@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var store = NewRequestStore()
+var store = NewRequestStore(&testRequester{})
 
 type testRequester struct {
 }
@@ -54,7 +54,7 @@ func TestServer_GetReadyResponse(t *testing.T) {
 	resp := &Response{StatusCode: 200}
 	store.SetResponse(request.ID, resp, nil)
 
-	obj := tester(t).GET("/api/v1/requests/{ID}/responses", request.ID).
+	obj := tester(t).GET("/api/v1/requests/{ID}", request.ID).
 		Expect().
 		Status(http.StatusOK).
 		JSON().Object()
@@ -68,7 +68,7 @@ func TestServer_GetErrorResponse(t *testing.T) {
 
 	store.SetResponse(request.ID, nil, errors.New("error.while.do.request"))
 
-	obj := tester(t).GET("/api/v1/requests/{ID}/responses", request.ID).
+	obj := tester(t).GET("/api/v1/requests/{ID}", request.ID).
 		Expect().
 		Status(http.StatusOK).
 		JSON().Object()
@@ -80,12 +80,27 @@ func TestServer_GetErrorResponse(t *testing.T) {
 func TestServer_GetNotReadyResponse(t *testing.T) {
 	request := createRequest(t)
 
-	r := tester(t).GET("/api/v1/requests/{ID}/responses", request.ID).
+	r := tester(t).GET("/api/v1/requests/{ID}", request.ID).
 		Expect().
 		Status(http.StatusOK).
 		JSON().Object()
 
 	r.Value("status").Object().ValueEqual("status", "idle")
+}
+
+func TestServer_ExecRequest(t *testing.T) {
+	request := createRequest(t)
+
+	data := RequestData{Method: "hello", URL: "there"}
+
+	r := tester(t).PUT("/api/v1/requests/{ID}", request.ID).
+		WithJSON(data).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object()
+
+	r.Value("status").Object().ValueEqual("status", "in_progress")
+	r.ValueEqual("data", data)
 }
 
 func createRequest(t *testing.T) *Request {
@@ -104,7 +119,7 @@ func createRequest(t *testing.T) *Request {
 }
 
 func tester(t *testing.T) *httpexpect.Expect {
-	handler, _ := IrisHandler(&testRequester{}, store)
+	handler := IrisHandler(store)
 	handler.Build()
 	return httpexpect.WithConfig(httpexpect.Config{
 		BaseURL: "http://example.com",

@@ -8,7 +8,7 @@ import (
 
 type RequestStore interface {
 	CreateRequest(name string) (*Request, error)
-	ExecRequest(id string, req *RequestData) error
+	ExecRequest(id string, req *RequestData) (*Request, error)
 	Get(id string) (*Request, error)
 	Delete(id string) error
 	List() ([]Request, error)
@@ -16,19 +16,35 @@ type RequestStore interface {
 	SetResponse(id string, response *Response, err error) error
 }
 
-func NewRequestStore() *MapRequestStore {
+func NewRequestStore(requester Requester) *MapRequestStore {
 	hd := hashids.NewData()
 	hd.Salt = "this is my salt"
 	hd.MinLength = 20
 
-	return &MapRequestStore{store: make(map[string]*Request), hd: hd}
+	store := &MapRequestStore{
+		store:     make(map[string]*Request),
+		hd:        hd,
+		requester: requester,
+		requestCh: make(chan *Request, 1000),
+	}
+	go store.ListenForTasks()
+	return store
 }
 
 type MapRequestStore struct {
 	sync.RWMutex
-	store    map[string]*Request
-	requests []Request
-	hd       *hashids.HashIDData
+	store     map[string]*Request
+	requests  []Request
+	hd        *hashids.HashIDData
+	requester Requester
+	requestCh chan (*Request)
+}
+
+func (s *MapRequestStore) ListenForTasks() {
+	for request := range s.requestCh {
+		resp, err := s.requester.Do(request.RequestData)
+		s.SetResponse(request.ID, resp, err)
+	}
 }
 
 func (s *MapRequestStore) CreateRequest(name string) (*Request, error) {
@@ -49,15 +65,18 @@ func (s *MapRequestStore) generateId() (string, error) {
 	return h.Encode([]int{len(s.store)})
 }
 
-func (s *MapRequestStore) ExecRequest(id string, r *RequestData) error {
-	s.RLock()
-	defer s.RUnlock()
-	if data, ok := s.store[id]; ok {
-		data.RequestData = r
-		return nil
+func (s *MapRequestStore) ExecRequest(id string, data *RequestData) (*Request, error) {
+	s.Lock()
+	defer s.Unlock()
+	if request, ok := s.store[id]; ok {
+		request.RequestData = data
+		request.Status.Status = "in_progress"
+		request.Status.Error = ""
+		s.requestCh <- request
+		return request, nil
 	}
 
-	return errors.New("request not found")
+	return nil, errors.New("request not found")
 }
 
 func (s *MapRequestStore) Get(id string) (request *Request, err error) {
@@ -92,8 +111,8 @@ func (s *MapRequestStore) Delete(id string) error {
 }
 
 func (s *MapRequestStore) SetResponse(id string, response *Response, err error) error {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 
 	data, ok := s.store[id]
 	if !ok {

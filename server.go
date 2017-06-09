@@ -14,7 +14,7 @@ import (
 
 var log = logrus.New()
 
-func NewServer(r Requester, s RequestStore) *Server {
+func NewServer(s RequestStore) *Server {
 	log.Out = os.Stdout
 	formatter := new(logrus.TextFormatter)
 	formatter.ForceColors = true
@@ -23,18 +23,16 @@ func NewServer(r Requester, s RequestStore) *Server {
 
 	//anonymLimiter := rate.NewLimiter(rate.Every(time.Duration(200)*time.Millisecond), 5)
 
-	return &Server{requester: r, store: s, requestCh: make(chan *Request, 100)}
+	return &Server{store: s}
 }
 
 type Server struct {
-	requester     Requester
 	store         RequestStore
-	requestCh     chan *Request
 	anonymLimiter *rate.Limiter
 }
 
-func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Server) {
-	srv := NewServer(requester, store)
+func IrisHandler(store RequestStore) *iris.Framework {
+	srv := NewServer(store)
 	api := iris.New()
 	api.UseFunc(logger.New())
 
@@ -59,22 +57,14 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 		requests := v1.Party("/requests")
 
 		requests.Post("", srv.CreateRequest)
-		requests.Post("/:id/requests", srv.ExecRequest)
+		requests.Put("/:id", srv.ExecRequest)
 		requests.Get("/:id", srv.GetRequest)
-		requests.Get("/:id/responses", srv.GetResponse)
-		requests.Get("", srv.GetRequestTaskList)
+		requests.Get("", srv.GetRequests)
 
 		v1.Get("/test", srv.Test)
 	}
 
-	return api, srv
-}
-
-func (s *Server) ListenForTasks() {
-	for request := range s.requestCh {
-		resp, err := s.requester.Do(request.RequestData)
-		s.store.SetResponse(request.ID, resp, err)
-	}
+	return api
 }
 
 func (s *Server) CheckAuthToken(ctx *iris.Context) {
@@ -114,51 +104,36 @@ func (s *Server) CreateRequest(ctx *iris.Context) {
 }
 
 func (s *Server) ExecRequest(ctx *iris.Context) {
-	req := &RequestData{}
-	err := ctx.ReadJSON(req)
+	data := &RequestData{}
+	err := ctx.ReadJSON(data)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
-	err = s.store.ExecRequest(ctx.Param("id"), req)
+	req, err := s.store.ExecRequest(ctx.Param("id"), data)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusCreated, "")
+	ctx.JSON(http.StatusOK, req)
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
-	cReq, err := s.store.Get(ctx.Param("id"))
+	req, err := s.store.Get(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	if cReq == nil {
+	if req == nil {
 		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, cReq)
+	ctx.JSON(http.StatusOK, req)
 }
 
-func (s *Server) GetResponse(ctx *iris.Context) {
-	request, err := s.store.Get(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if request == nil {
-		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
-		return
-	}
-
-	ctx.JSON(http.StatusOK, ResponseData{Response: request.Response, Status: request.Status})
-}
-
-func (s *Server) GetRequestTaskList(ctx *iris.Context) {
+func (s *Server) GetRequests(ctx *iris.Context) {
 	taskList, err := s.store.List()
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())

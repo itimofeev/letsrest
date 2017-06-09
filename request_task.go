@@ -5,7 +5,7 @@ type Request struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 
-	RequestData *RequestData `json:"request,omitempty"`
+	RequestData *RequestData `json:"data,omitempty"`
 	Response    *Response    `json:"response,omitempty"`
 	Status      *ExecStatus  `json:"status"`
 }
