@@ -56,9 +56,9 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 
 		v1.Put("/authTokens", srv.CheckAuthToken)
 
-		requests := v1.Party("/requests")
+		requests := v1.Party("/buckets")
 
-		requests.Post("/", srv.CreateBucket)
+		requests.Post("", srv.CreateBucket)
 		requests.Get("/:id", srv.GetRequest)
 		requests.Get("/:id/responses", srv.GetResponse)
 		requests.Get("", srv.GetRequestTaskList)
@@ -96,15 +96,20 @@ func (s *Server) CheckAuthToken(ctx *iris.Context) {
 }
 
 func (s *Server) CreateBucket(ctx *iris.Context) {
-	//requestTask, err = s.store.CreateBucket("hello")
-	//if err != nil {
-	//	ctx.JSON(http.StatusBadRequest, err.Error())
-	//	return
-	//}
-	//
-	//s.bucketCh <- requestTask
-	//
-	//ctx.JSON(http.StatusCreated, requestTask)
+	name := &struct {
+		Name string `json:"name"`
+	}{}
+	err := ctx.ReadJSON(name)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+	bucket, err := s.store.CreateBucket(name.Name)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+	ctx.JSON(http.StatusCreated, bucket)
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
@@ -123,25 +128,26 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetResponse(ctx *iris.Context) {
-	//cResp, err := s.store.GetResponse(ctx.Param("id"))
-	//if err != nil {
-	//	ctx.JSON(http.StatusInternalServerError, err.Error())
-	//	return
-	//}
-	//
-	//if cResp == nil {
-	//	ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
-	//	return
-	//}
-	//
-	//if cResp.Status.Status == "in_progress" {
-	//	ctx.JSON(http.StatusPartialContent, cResp)
-	//	return
-	//}
-	//
-	//ctx.JSON(http.StatusOK, cResp)
-}
+	bucket, err := s.store.Get(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
 
+	if bucket == nil {
+		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
+		return
+	}
+
+	responseData := ResponseData{Response: bucket.Response, Status: bucket.Status}
+
+	if bucket.Status.Status == "in_progress" {
+		ctx.JSON(http.StatusPartialContent, responseData)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, responseData)
+}
 
 func (s *Server) GetRequestTaskList(ctx *iris.Context) {
 	taskList, err := s.store.List()

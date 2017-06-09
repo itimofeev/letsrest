@@ -21,12 +21,12 @@ func NewRequestStore() *MapRequestStore {
 	hd.Salt = "this is my salt"
 	hd.MinLength = 20
 
-	return &MapRequestStore{store: make(map[string]Bucket), hd: hd}
+	return &MapRequestStore{store: make(map[string]*Bucket), hd: hd}
 }
 
 type MapRequestStore struct {
 	sync.RWMutex
-	store   map[string]Bucket
+	store   map[string]*Bucket
 	buckets []Bucket
 	hd      *hashids.HashIDData
 }
@@ -39,7 +39,7 @@ func (s *MapRequestStore) CreateBucket(name string) (*Bucket, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	s.store[id] = bucket
+	s.store[id] = &bucket
 	s.buckets = append(s.buckets, bucket)
 	return &bucket, err
 }
@@ -58,7 +58,7 @@ func (s *MapRequestStore) Get(id string) (bucket *Bucket, err error) {
 	defer s.RUnlock()
 
 	if data, ok := s.store[id]; ok {
-		return &data, nil
+		return data, nil
 	}
 	return nil, nil
 }
