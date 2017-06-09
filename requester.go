@@ -1,7 +1,6 @@
 package letsrest
 
 import (
-	"bytes"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -9,7 +8,7 @@ import (
 )
 
 type Requester interface {
-	Do(request *RequestTask) (*Response, error)
+	Do(request *Request) (*Response, error)
 }
 
 func NewHTTPRequester() *HTTPRequester {
@@ -19,11 +18,11 @@ func NewHTTPRequester() *HTTPRequester {
 type HTTPRequester struct {
 }
 
-func (r *HTTPRequester) Do(request *RequestTask) (cResp *Response, err error) {
+func (r *HTTPRequester) Do(request *Request) (cResp *Response, err error) {
 	var reader io.Reader
-	if len(request.Body) > 0 {
-		reader = bytes.NewReader(request.Body)
-	}
+	//if len(request.Body) > 0 {
+	//	reader = bytes.NewReader(request.Body)
+	//}
 
 	req, err := http.NewRequest(request.Method, request.URL, reader)
 	if err != nil {
@@ -58,10 +57,8 @@ func (r *HTTPRequester) Do(request *RequestTask) (cResp *Response, err error) {
 	}
 
 	cResp = &Response{
-		ID:          request.ID,
 		StatusCode:  resp.StatusCode,
 		Headers:     h,
-		Body:        bodyData,
 		BodyLen:     len(bodyData),
 		ContentType: contentType,
 	}

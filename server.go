@@ -1,7 +1,6 @@
 package letsrest
 
 import (
-	"encoding/json"
 	"github.com/Sirupsen/logrus"
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
@@ -13,8 +12,6 @@ import (
 	"time"
 )
 
-const MAX_BODY_SIZE = 1 * 1024 * 1024
-
 var log = logrus.New()
 
 func NewServer(r Requester, s RequestStore) *Server {
@@ -25,15 +22,14 @@ func NewServer(r Requester, s RequestStore) *Server {
 	log.Level = logrus.DebugLevel
 
 	//anonymLimiter := rate.NewLimiter(rate.Every(time.Duration(200)*time.Millisecond), 5)
-	anonymLimiter := rate.NewLimiter(rate.Every(time.Duration(5)*time.Second), 1)
 
-	return &Server{requester: r, store: s, taskCh: make(chan *RequestTask, 100), anonymLimiter: anonymLimiter}
+	return &Server{requester: r, store: s, bucketCh: make(chan *Bucket, 100)}
 }
 
 type Server struct {
 	requester     Requester
 	store         RequestStore
-	taskCh        chan *RequestTask
+	bucketCh      chan *Bucket
 	anonymLimiter *rate.Limiter
 }
 
@@ -58,12 +54,13 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 		// inside http://localhost:6111/users/*anything
 		//api.OnError(404, userNotFoundHandler)
 
+		v1.Put("/authTokens", srv.CheckAuthToken)
+
 		requests := v1.Party("/requests")
 
-		requests.Put("", srv.CheckAuthToken, srv.CreateRequest)
+		requests.Post("/", srv.CreateBucket)
 		requests.Get("/:id", srv.GetRequest)
 		requests.Get("/:id/responses", srv.GetResponse)
-		requests.Get("/:id/body", srv.GetResponseBody)
 		requests.Get("", srv.GetRequestTaskList)
 
 		v1.Get("/test", srv.Test)
@@ -73,9 +70,9 @@ func IrisHandler(requester Requester, store RequestStore) (*iris.Framework, *Ser
 }
 
 func (s *Server) ListenForTasks() {
-	for task := range s.taskCh {
-		resp, err := s.requester.Do(task)
-		s.store.SetResponse(task.ID, resp, err)
+	for bucket := range s.bucketCh {
+		resp, err := s.requester.Do(bucket.Request)
+		s.store.SetResponse(bucket.ID, resp, err)
 	}
 }
 
@@ -98,44 +95,16 @@ func (s *Server) CheckAuthToken(ctx *iris.Context) {
 	ctx.Next()
 }
 
-func (s *Server) CreateRequest(ctx *iris.Context) {
-	requestTask := &RequestTask{}
-
-	err := ctx.Request.ParseMultipartForm(MAX_BODY_SIZE)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
-		log.WithError(err).Debug("Parse form")
-		return
-	}
-
-	requestTaskJson := ctx.FormValue("requestTask")
-	if err := json.Unmarshal([]byte(requestTaskJson), requestTask); err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
-		log.WithError(err).Error("Unmarshal request task")
-		return
-	}
-
-	file, _, err := ctx.FormFile("fileBody")
-	if err == nil && file != nil {
-		var data []byte
-		_, err := file.Read(data)
-		if err != nil {
-			log.WithError(err).Error("Error reading fileBody")
-			ctx.JSON(http.StatusBadRequest, err.Error())
-			return
-		}
-		requestTask.Body = data
-	}
-
-	requestTask, err = s.store.Save(requestTask)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
-		return
-	}
-
-	s.taskCh <- requestTask
-
-	ctx.JSON(http.StatusCreated, requestTask)
+func (s *Server) CreateBucket(ctx *iris.Context) {
+	//requestTask, err = s.store.CreateBucket("hello")
+	//if err != nil {
+	//	ctx.JSON(http.StatusBadRequest, err.Error())
+	//	return
+	//}
+	//
+	//s.bucketCh <- requestTask
+	//
+	//ctx.JSON(http.StatusCreated, requestTask)
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
@@ -154,52 +123,25 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetResponse(ctx *iris.Context) {
-	cResp, err := s.store.GetResponse(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if cResp == nil {
-		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
-		return
-	}
-
-	if cResp.Status.Status == "in_progress" {
-		ctx.JSON(http.StatusPartialContent, cResp)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, cResp)
+	//cResp, err := s.store.GetResponse(ctx.Param("id"))
+	//if err != nil {
+	//	ctx.JSON(http.StatusInternalServerError, err.Error())
+	//	return
+	//}
+	//
+	//if cResp == nil {
+	//	ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
+	//	return
+	//}
+	//
+	//if cResp.Status.Status == "in_progress" {
+	//	ctx.JSON(http.StatusPartialContent, cResp)
+	//	return
+	//}
+	//
+	//ctx.JSON(http.StatusOK, cResp)
 }
 
-func (s *Server) GetResponseBody(ctx *iris.Context) {
-	cResp, err := s.store.GetResponse(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if cResp == nil {
-		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
-		return
-	}
-
-	if cResp.Status.Status == "in_progress" {
-		ctx.JSON(http.StatusPartialContent, cResp)
-		return
-	}
-
-	h := findHeader("Content-Type", cResp.Response.Headers)
-
-	if h != nil {
-		ctx.ResponseWriter.Header().Add("Content-Type", h.Value)
-	} else {
-		ctx.ResponseWriter.Header().Add("Content-Type", "application/octet-stream")
-	}
-	ctx.ResponseWriter.WriteHeader(http.StatusOK)
-	ctx.ResponseWriter.Write(cResp.Response.Body)
-}
 
 func (s *Server) GetRequestTaskList(ctx *iris.Context) {
 	taskList, err := s.store.List()

@@ -7,13 +7,13 @@ import (
 )
 
 type RequestStore interface {
-	Save(*RequestTask) (*RequestTask, error)
-	Get(id string) (*RequestTask, error)
+	CreateBucket(name string) (*Bucket, error)
+	CreateRequest(*Bucket, *Request) error
+	Get(id string) (*Bucket, error)
 	Delete(id string) error
-	List() ([]RequestTask, error)
+	List() ([]Bucket, error)
 
 	SetResponse(id string, response *Response, err error) error
-	GetResponse(id string) (*Result, error)
 }
 
 func NewRequestStore() *MapRequestStore {
@@ -21,35 +21,27 @@ func NewRequestStore() *MapRequestStore {
 	hd.Salt = "this is my salt"
 	hd.MinLength = 20
 
-	return &MapRequestStore{store: make(map[string]*RequestData), hd: hd}
-}
-
-// объект для хранения в store
-type RequestData struct {
-	ID string
-
-	Info     *Info
-	Request  *RequestTask
-	Response *Response
+	return &MapRequestStore{store: make(map[string]Bucket), hd: hd}
 }
 
 type MapRequestStore struct {
 	sync.RWMutex
-	store    map[string]*RequestData
-	taskList []RequestData
-	hd       *hashids.HashIDData
+	store   map[string]Bucket
+	buckets []Bucket
+	hd      *hashids.HashIDData
 }
 
-func (s *MapRequestStore) Save(in *RequestTask) (*RequestTask, error) {
+func (s *MapRequestStore) CreateBucket(name string) (*Bucket, error) {
+	id, err := s.generateId()
+	Must(err, "s.generateId()")
+	bucket := Bucket{ID: id, Status: &ExecStatus{Status: "in_progress"}}
+
 	s.Lock()
 	defer s.Unlock()
 
-	id, err := s.generateId()
-	in.ID = id
-	rd := RequestData{ID: id, Request: in, Info: &Info{Status: "in_progress"}}
-	s.store[id] = &RequestData{ID: id, Request: in, Info: &Info{Status: "in_progress"}}
-	s.taskList = append(s.taskList, rd)
-	return in, err
+	s.store[id] = bucket
+	s.buckets = append(s.buckets, bucket)
+	return &bucket, err
 }
 
 func (s *MapRequestStore) generateId() (string, error) {
@@ -57,26 +49,25 @@ func (s *MapRequestStore) generateId() (string, error) {
 	return h.Encode([]int{len(s.store)})
 }
 
-func (s *MapRequestStore) Get(id string) (cReq *RequestTask, err error) {
-	s.RLock()
-	defer s.RUnlock()
-
-	data := s.store[id]
-	if data != nil {
-		cReq = data.Request
-	}
-	return
+func (s *MapRequestStore) CreateRequest(*Bucket, *Request) error {
+	return nil
 }
-func (s *MapRequestStore) List() (taskList []RequestTask, err error) {
+
+func (s *MapRequestStore) Get(id string) (bucket *Bucket, err error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	taskList = make([]RequestTask, len(s.taskList))
-	for i, value := range s.taskList {
-		taskList[len(s.taskList)-i-1] = *value.Request
+	if data, ok := s.store[id]; ok {
+		return &data, nil
 	}
+	return nil, nil
+}
 
-	return
+func (s *MapRequestStore) List() (taskList []Bucket, err error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.buckets[:], nil
 }
 
 func (s *MapRequestStore) Delete(id string) error {
@@ -84,6 +75,12 @@ func (s *MapRequestStore) Delete(id string) error {
 	defer s.Unlock()
 
 	delete(s.store, id)
+	for i := range s.buckets {
+		if s.buckets[i].ID == id {
+			s.buckets = append(s.buckets[:i], s.buckets[i+1:]...)
+		}
+	}
+
 	return nil
 }
 
@@ -91,27 +88,16 @@ func (s *MapRequestStore) SetResponse(id string, response *Response, err error) 
 	s.RLock()
 	defer s.RUnlock()
 
-	data := s.store[id]
-	if data == nil {
+	data, ok := s.store[id]
+	if !ok {
 		return errors.New("request.not.found")
 	}
 	if err != nil {
-		data.Info.Status = "error"
-		data.Info.Error = err.Error()
+		data.Status.Status = "error"
+		data.Status.Error = err.Error()
 	} else {
-		data.Info.Status = "done"
+		data.Status.Status = "done"
 	}
 	data.Response = response
 	return nil
-}
-
-func (s *MapRequestStore) GetResponse(id string) (*Result, error) {
-	s.RLock()
-	defer s.RUnlock()
-
-	data := s.store[id]
-	if data == nil {
-		return nil, nil
-	}
-	return &Result{Response: data.Response, Status: data.Info}, nil
 }

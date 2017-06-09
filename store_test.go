@@ -7,18 +7,23 @@ import (
 
 func TestMapRequestStore_CRUD(t *testing.T) {
 	store := NewRequestStore()
-	cReq := &RequestTask{}
 
-	saved, _ := store.Save(cReq)
-	assert.NotEmpty(t, saved.ID)
+	bucket, _ := store.CreateBucket("somename")
+	assert.NotEmpty(t, bucket.ID)
 
-	loaded, _ := store.Get(cReq.ID)
-	assert.Equal(t, saved, loaded)
+	loaded, _ := store.Get(bucket.ID)
+	assert.Equal(t, bucket, loaded)
+
+	list, _ := store.List()
+	assert.Len(t, list, 1)
 
 	notExisted, _ := store.Get("someNotExistentID")
 	assert.Nil(t, notExisted)
 
-	store.Delete(cReq.ID)
-	deleted, _ := store.Get(cReq.ID)
+	store.Delete(bucket.ID)
+	deleted, _ := store.Get(bucket.ID)
 	assert.Nil(t, deleted)
+
+	list, _ = store.List()
+	assert.Len(t, list, 0)
 }
