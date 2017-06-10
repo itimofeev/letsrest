@@ -11,7 +11,7 @@ type RequestStore interface {
 	ExecRequest(id string, req *RequestData) (*Request, error)
 	Get(id string) (*Request, error)
 	Delete(id string) error
-	List() ([]Request, error)
+	List() ([]*Request, error)
 
 	SetResponse(id string, response *Response, err error) error
 }
@@ -34,7 +34,7 @@ func NewRequestStore(requester Requester) *MapRequestStore {
 type MapRequestStore struct {
 	sync.RWMutex
 	store     map[string]*Request
-	requests  []Request
+	requests  []*Request
 	hd        *hashids.HashIDData
 	requester Requester
 	requestCh chan (*Request)
@@ -50,14 +50,14 @@ func (s *MapRequestStore) ListenForTasks() {
 func (s *MapRequestStore) CreateRequest(name string) (*Request, error) {
 	id, err := s.generateId()
 	Must(err, "s.generateId()")
-	request := Request{ID: id, Status: &ExecStatus{Status: "idle"}}
+	request := &Request{ID: id, Name: name, Status: &ExecStatus{Status: "idle"}}
 
 	s.Lock()
 	defer s.Unlock()
 
-	s.store[id] = &request
+	s.store[id] = request
 	s.requests = append(s.requests, request)
-	return &request, err
+	return request, err
 }
 
 func (s *MapRequestStore) generateId() (string, error) {
@@ -89,7 +89,7 @@ func (s *MapRequestStore) Get(id string) (request *Request, err error) {
 	return nil, nil
 }
 
-func (s *MapRequestStore) List() (requests []Request, err error) {
+func (s *MapRequestStore) List() (requests []*Request, err error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -114,16 +114,16 @@ func (s *MapRequestStore) SetResponse(id string, response *Response, err error) 
 	s.Lock()
 	defer s.Unlock()
 
-	data, ok := s.store[id]
+	request, ok := s.store[id]
 	if !ok {
 		return errors.New("request.not.found")
 	}
 	if err != nil {
-		data.Status.Status = "error"
-		data.Status.Error = err.Error()
+		request.Status.Status = "error"
+		request.Status.Error = err.Error()
 	} else {
-		data.Status.Status = "done"
+		request.Status.Status = "done"
 	}
-	data.Response = response
+	request.Response = response
 	return nil
 }

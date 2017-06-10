@@ -1,12 +1,14 @@
 package letsrest
 
 import (
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
 	"github.com/speps/go-hashids"
 	"golang.org/x/time/rate"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"strings"
 	"time"
@@ -35,10 +37,14 @@ func IrisHandler(store RequestStore) *iris.Framework {
 	srv := NewServer(store)
 	api := iris.New()
 	api.UseFunc(logger.New())
+	api.UseFunc(func(ctx *iris.Context) {
+		d, _ := httputil.DumpRequest(ctx.Request, true)
+		fmt.Println(string(d))
+		ctx.Next()
+	})
 
 	api.Get("/", func(ctx *iris.Context) {
 		ctx.JSON(http.StatusOK, "OK")
-		return
 	})
 
 	v1 := api.Party("/api/v1")
@@ -134,12 +140,12 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetRequests(ctx *iris.Context) {
-	taskList, err := s.store.List()
+	requests, err := s.store.List()
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, taskList)
+	ctx.JSON(http.StatusOK, requests)
 }
 
 func findHeader(name string, headers []Header) *Header {

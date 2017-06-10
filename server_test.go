@@ -100,6 +100,8 @@ func TestServer_ExecRequest(t *testing.T) {
 		JSON().Object()
 
 	r.Value("status").Object().ValueEqual("status", "in_progress")
+	r.Value("data").Object().ValueEqual("method", data.Method)
+	r.Value("data").Object().ValueEqual("url", data.URL)
 	r.ValueEqual("data", data)
 }
 
@@ -112,6 +114,7 @@ func createRequest(t *testing.T) *Request {
 		Status(http.StatusCreated).
 		JSON()
 
+	resp.Object().ValueEqual("name", "some name")
 	resp.Object().ContainsKey("id")
 	request.ID = resp.Object().Value("id").Raw().(string)
 
