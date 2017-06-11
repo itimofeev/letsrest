@@ -16,13 +16,17 @@ type Auth struct {
 	AuthToken string `json:"auth_token"`
 }
 
-func createAuthToken() *Auth {
+func createUser() *User {
 	userID, err := uuid.NewV4()
 	Must(err, "uuid.NewV4()")
+	return &User{ID: userID.String()}
+}
+
+func createAuthToken(user *User) *Auth {
 	expDate := time.Now().Add(time.Hour * 24 * 355 * 10) // 10 years
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, LetsRestClaims{
-		UserID: userID.String(),
+		UserID: user.ID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expDate.Unix(),
 			IssuedAt:  time.Now().Unix(),
@@ -34,4 +38,19 @@ func createAuthToken() *Auth {
 	tokenString, err := token.SignedString([]byte(secretForJwt))
 	Must(err, "token.SignedString([]byte(secretForJwt))")
 	return &Auth{AuthToken: tokenString}
+}
+
+func userFromAuthToken(authToken string) (*User, error) {
+	token, err := jwt.ParseWithClaims(authToken, &LetsRestClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return secretForJwt, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	claims, _ := token.Claims.(*LetsRestClaims)
+	//if !ok || !token.Valid {
+	//}
+	return &User{ID: claims.UserID}, nil
 }

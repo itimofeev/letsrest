@@ -14,6 +14,9 @@ type RequestStore interface {
 	List() ([]*Request, error)
 
 	SetResponse(id string, response *Response, err error) error
+
+	PutUser(*User) error
+	GetUser(id string) (*User, error)
 }
 
 func NewRequestStore(requester Requester) *MapRequestStore {
@@ -23,6 +26,7 @@ func NewRequestStore(requester Requester) *MapRequestStore {
 
 	store := &MapRequestStore{
 		store:     make(map[string]*Request),
+		users:     make(map[string]*User),
 		hd:        hd,
 		requester: requester,
 		requestCh: make(chan *Request, 1000),
@@ -34,6 +38,7 @@ func NewRequestStore(requester Requester) *MapRequestStore {
 type MapRequestStore struct {
 	sync.RWMutex
 	store     map[string]*Request
+	users     map[string]*User
 	requests  []*Request
 	hd        *hashids.HashIDData
 	requester Requester
@@ -129,4 +134,22 @@ func (s *MapRequestStore) SetResponse(id string, response *Response, err error) 
 	}
 	request.Response = response
 	return nil
+}
+
+func (s *MapRequestStore) PutUser(user *User) error {
+	s.Lock()
+	defer s.Unlock()
+
+	s.users[user.ID] = user
+	return nil
+}
+
+func (s *MapRequestStore) GetUser(id string) (*User, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	if user, ok := s.users[id]; ok {
+		return user, nil
+	}
+	return nil, nil
 }

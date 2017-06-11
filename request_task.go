@@ -34,3 +34,7 @@ type ExecStatus struct {
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
 }
+
+type User struct {
+	ID string `json:"id"`
+}

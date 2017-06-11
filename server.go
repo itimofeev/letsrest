@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var secretForJwt = []byte("123") // TODO secured string
+var secretForJwt = []byte("12345678901234567890") // TODO move to settings
 
 var log = logrus.New()
 
@@ -47,7 +47,7 @@ func IrisHandler(store RequestStore) *iris.Framework {
 		ctx.JSON(http.StatusOK, "OK")
 	})
 
-	v1 := api.Party("/api/v1", srv.CheckAuthToken)
+	v1 := api.Party("/api/v1")
 	{
 		v1.Get("/", func(ctx *iris.Context) {
 			ctx.JSON(http.StatusOK, "OK")
@@ -60,7 +60,7 @@ func IrisHandler(store RequestStore) *iris.Framework {
 
 		v1.Get("/authTokens", srv.CreateAuthToken)
 
-		requests := v1.Party("/requests")
+		requests := v1.Party("/requests", srv.CheckAuthToken)
 
 		requests.Post("", srv.CreateRequest)
 		requests.Put("/:id", srv.ExecRequest)
@@ -74,20 +74,56 @@ func IrisHandler(store RequestStore) *iris.Framework {
 }
 
 func (s *Server) CheckAuthToken(ctx *iris.Context) {
-	_, ok := ctx.Request.Header["Authorization"]
+	authHeader, ok := ctx.Request.Header["Authorization"]
 
 	if !ok {
 		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
-		ctx.ResponseWriter.WriteHeader(http.StatusTooManyRequests)
-		ctx.ResponseWriter.Write([]byte("You have reached maximum request limit."))
+		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter.Write([]byte("Auth header not found"))
 		ctx.StopExecution()
 		return
 	}
+
+	authToken := strings.Replace(authHeader[0], "Bearer ", "", 1)
+
+	user, err := userFromAuthToken(authToken)
+	if err != nil {
+		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter.Write([]byte("Unable to decode auth token"))
+		ctx.StopExecution()
+		return
+	}
+	user, err = s.store.GetUser(user.ID)
+	if err != nil {
+		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter.Write([]byte("Error retrieving user from store"))
+		ctx.StopExecution()
+		return
+	}
+
+	if user == nil {
+		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter.Write([]byte("User not found in store"))
+		ctx.StopExecution()
+		return
+	}
+
+	ctx.Set("LetsRestUser", user)
 	ctx.Next()
 }
 
 func (s *Server) CreateAuthToken(ctx *iris.Context) {
-	ctx.JSON(http.StatusOK, createAuthToken())
+	user := createUser()
+	err := s.store.PutUser(user)
+	if err != nil {
+		ctx.WriteString(fmt.Sprintf("PutUser returned error %s", err.Error()))
+		return
+	}
+	token := createAuthToken(user)
+	ctx.JSON(http.StatusOK, token)
 }
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
