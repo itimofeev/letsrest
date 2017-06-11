@@ -13,6 +13,7 @@ type LetsRestClaims struct {
 }
 
 type Auth struct {
+	UserID string `json:"user_id"`
 	AuthToken string `json:"auth_token"`
 }
 
@@ -37,7 +38,7 @@ func createAuthToken(user *User) *Auth {
 	// Sign and get the complete encoded token as a string
 	tokenString, err := token.SignedString([]byte(secretForJwt))
 	Must(err, "token.SignedString([]byte(secretForJwt))")
-	return &Auth{AuthToken: tokenString}
+	return &Auth{UserID: user.ID, AuthToken: tokenString}
 }
 
 func userFromAuthToken(authToken string) (*User, error) {

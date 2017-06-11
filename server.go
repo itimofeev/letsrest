@@ -16,7 +16,7 @@ var secretForJwt = []byte("12345678901234567890") // TODO move to settings
 
 var log = logrus.New()
 
-func NewServer(s RequestStore) *Server {
+func NewServer(s DataStore) *Server {
 	log.Out = os.Stdout
 	formatter := new(logrus.TextFormatter)
 	formatter.ForceColors = true
@@ -29,11 +29,11 @@ func NewServer(s RequestStore) *Server {
 }
 
 type Server struct {
-	store         RequestStore
+	store         DataStore
 	anonymLimiter *rate.Limiter
 }
 
-func IrisHandler(store RequestStore) *iris.Framework {
+func IrisHandler(store DataStore) *iris.Framework {
 	srv := NewServer(store)
 	api := iris.New()
 	api.UseFunc(logger.New())
@@ -58,7 +58,7 @@ func IrisHandler(store RequestStore) *iris.Framework {
 		// inside http://localhost:6111/users/*anything
 		//api.OnError(404, userNotFoundHandler)
 
-		v1.Get("/authTokens", srv.CreateAuthToken)
+		v1.Post("/authTokens", srv.CreateAuthToken)
 
 		requests := v1.Party("/requests", srv.CheckAuthToken)
 
@@ -122,8 +122,8 @@ func (s *Server) CreateAuthToken(ctx *iris.Context) {
 		ctx.WriteString(fmt.Sprintf("PutUser returned error %s", err.Error()))
 		return
 	}
-	token := createAuthToken(user)
-	ctx.JSON(http.StatusOK, token)
+	auth := createAuthToken(user)
+	ctx.JSON(http.StatusOK, auth)
 }
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
@@ -135,7 +135,10 @@ func (s *Server) CreateRequest(ctx *iris.Context) {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
-	request, err := s.store.CreateRequest(name.Name)
+
+	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
+
+	request, err := store.CreateRequest(name.Name)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -150,7 +153,8 @@ func (s *Server) ExecRequest(ctx *iris.Context) {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
-	req, err := s.store.ExecRequest(ctx.Param("id"), data)
+	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
+	req, err := store.ExecRequest(ctx.Param("id"), data)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -159,7 +163,8 @@ func (s *Server) ExecRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
-	req, err := s.store.Get(ctx.Param("id"))
+	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
+	req, err := store.Get(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -174,7 +179,9 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetRequests(ctx *iris.Context) {
-	requests, err := s.store.List()
+	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
+
+	requests, err := store.List()
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return

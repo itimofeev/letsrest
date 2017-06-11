@@ -1,13 +1,15 @@
 package letsrest
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/gavv/httpexpect"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
 )
 
-var store = NewRequestStore(&testRequester{})
+var store = NewDataStore(&testRequester{})
 
 type testRequester struct {
 }
@@ -27,9 +29,10 @@ func TestServer_SimpleApiCalls(t *testing.T) {
 }
 
 func TestServer_CreateRequest(t *testing.T) {
-	request := createRequest(t)
+	request, auth := createRequest(t)
 
 	getResp := tester(t).GET("/api/v1/requests/{ID}", request.ID).
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		Expect().
 		Status(http.StatusOK).
 		JSON()
@@ -39,7 +42,10 @@ func TestServer_CreateRequest(t *testing.T) {
 }
 
 func TestServer_GetNotExistedRequest(t *testing.T) {
+	_, auth := createRequest(t)
+
 	v := tester(t).GET("/api/v1/requests/{ID}", "someNotExistedID").
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		Expect().
 		Status(http.StatusNotFound).
 		JSON()
@@ -49,12 +55,13 @@ func TestServer_GetNotExistedRequest(t *testing.T) {
 }
 
 func TestServer_GetReadyResponse(t *testing.T) {
-	request := createRequest(t)
+	request, auth := createRequest(t)
 
 	resp := &Response{StatusCode: 200}
-	store.SetResponse(request.ID, resp, nil)
+	store.RequestStore(&User{ID: auth.UserID}).SetResponse(request.ID, resp, nil)
 
 	obj := tester(t).GET("/api/v1/requests/{ID}", request.ID).
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		Expect().
 		Status(http.StatusOK).
 		JSON().Object()
@@ -64,11 +71,12 @@ func TestServer_GetReadyResponse(t *testing.T) {
 }
 
 func TestServer_GetErrorResponse(t *testing.T) {
-	request := createRequest(t)
+	request, auth := createRequest(t)
 
-	store.SetResponse(request.ID, nil, errors.New("error.while.do.request"))
+	store.RequestStore(&User{ID: auth.UserID}).SetResponse(request.ID, nil, errors.New("error.while.do.request"))
 
 	obj := tester(t).GET("/api/v1/requests/{ID}", request.ID).
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		Expect().
 		Status(http.StatusOK).
 		JSON().Object()
@@ -78,9 +86,10 @@ func TestServer_GetErrorResponse(t *testing.T) {
 }
 
 func TestServer_GetNotReadyResponse(t *testing.T) {
-	request := createRequest(t)
+	request, auth := createRequest(t)
 
 	r := tester(t).GET("/api/v1/requests/{ID}", request.ID).
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		Expect().
 		Status(http.StatusOK).
 		JSON().Object()
@@ -89,11 +98,12 @@ func TestServer_GetNotReadyResponse(t *testing.T) {
 }
 
 func TestServer_ExecRequest(t *testing.T) {
-	request := createRequest(t)
+	request, auth := createRequest(t)
 
 	data := RequestData{Method: "hello", URL: "there"}
 
 	r := tester(t).PUT("/api/v1/requests/{ID}", request.ID).
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		WithJSON(data).
 		Expect().
 		Status(http.StatusOK).
@@ -105,10 +115,28 @@ func TestServer_ExecRequest(t *testing.T) {
 	r.ValueEqual("data", data)
 }
 
-func createRequest(t *testing.T) *Request {
+func TestServer_ListUserRequests(t *testing.T) {
+	_, auth := createRequest(t)
+	createRequest(t)
+
+	tester(t).GET("/api/v1/requests").
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Array().Length().Equal(1)
+}
+
+func createRequest(t *testing.T) (*Request, *Auth) {
+	userAndAuthToken := tester(t).POST("/api/v1/authTokens").
+		Expect().
+		Status(http.StatusOK).Body()
+	auth := &Auth{}
+	require.Nil(t, json.Unmarshal([]byte(userAndAuthToken.Raw()), auth))
+
 	request := &Request{Name: "some name"}
 
 	resp := tester(t).POST("/api/v1/requests").
+		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		WithJSON(request).
 		Expect().
 		Status(http.StatusCreated).
@@ -118,7 +146,7 @@ func createRequest(t *testing.T) *Request {
 	resp.Object().ContainsKey("id")
 	request.ID = resp.Object().Value("id").Raw().(string)
 
-	return request
+	return request, auth
 }
 
 func tester(t *testing.T) *httpexpect.Expect {

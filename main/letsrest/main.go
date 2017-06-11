@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	framework := letsrest.IrisHandler(letsrest.NewRequestStore(letsrest.NewHTTPRequester()))
+	framework := letsrest.IrisHandler(letsrest.NewDataStore(letsrest.NewHTTPRequester()))
 	framework.Listen(":8080")
 }
