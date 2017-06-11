@@ -90,9 +90,12 @@ func (s *MapRequestStore) Get(id string) (request *Request, err error) {
 }
 
 func (s *MapRequestStore) List() (requests []*Request, err error) {
+	if len(s.requests) == 0 {
+		return make([]*Request, 0), nil
+	}
+
 	s.RLock()
 	defer s.RUnlock()
-
 	return s.requests[:], nil
 }
 

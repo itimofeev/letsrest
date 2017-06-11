@@ -3,9 +3,10 @@ package letsrest
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
-	"github.com/speps/go-hashids"
+	"github.com/nu7hatch/gouuid"
 	"golang.org/x/time/rate"
 	"net/http"
 	"net/http/httputil"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"time"
 )
+
+var secretForJwt = []byte("123") // TODO secured string
 
 var log = logrus.New()
 
@@ -47,7 +50,7 @@ func IrisHandler(store RequestStore) *iris.Framework {
 		ctx.JSON(http.StatusOK, "OK")
 	})
 
-	v1 := api.Party("/api/v1")
+	v1 := api.Party("/api/v1", srv.CheckAuthToken)
 	{
 		v1.Get("/", func(ctx *iris.Context) {
 			ctx.JSON(http.StatusOK, "OK")
@@ -58,7 +61,7 @@ func IrisHandler(store RequestStore) *iris.Framework {
 		// inside http://localhost:6111/users/*anything
 		//api.OnError(404, userNotFoundHandler)
 
-		v1.Put("/authTokens", srv.CheckAuthToken)
+		v1.Get("/authTokens", srv.CreateAuthToken)
 
 		requests := v1.Party("/requests")
 
@@ -67,7 +70,7 @@ func IrisHandler(store RequestStore) *iris.Framework {
 		requests.Get("/:id", srv.GetRequest)
 		requests.Get("", srv.GetRequests)
 
-		v1.Get("/test", srv.Test)
+		v1.Any("/test", srv.Test)
 	}
 
 	return api
@@ -75,21 +78,46 @@ func IrisHandler(store RequestStore) *iris.Framework {
 
 func (s *Server) CheckAuthToken(ctx *iris.Context) {
 	_, ok := ctx.Request.Header["Authorization"]
-	// для неавторизированных пользователей проверяем, что лимит запросов не превышен
-	if !ok {
-		if !s.anonymLimiter.Allow() {
-			ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
-			ctx.ResponseWriter.WriteHeader(http.StatusTooManyRequests)
-			ctx.ResponseWriter.Write([]byte("You have reached maximum request limit."))
-			ctx.StopExecution()
-			return
-		}
 
-		authToken, err := hashids.New().Encode([]int{time.Now().Second()})
-		Must(err, "hashids.New().Encode([]int{time.Now().Second()})")
-		ctx.ResponseWriter.Header().Add("X-LetsRest-AuthToken", authToken)
+	if !ok {
+		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter.WriteHeader(http.StatusTooManyRequests)
+		ctx.ResponseWriter.Write([]byte("You have reached maximum request limit."))
+		ctx.StopExecution()
+		return
 	}
 	ctx.Next()
+}
+
+// LetsRestClaims claims in terminology of jwt just a data that serialized in jwt token
+type LetsRestClaims struct {
+	UserID string
+	jwt.StandardClaims
+}
+
+type Auth struct {
+	AuthToken string `json:"auth_token"`
+}
+
+func (s *Server) CreateAuthToken(ctx *iris.Context) {
+	userID, err := uuid.NewV4()
+	Must(err, "uuid.NewV4()")
+	expDate := time.Now().Add(time.Hour * 24 * 355 * 10) // 10 years
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, LetsRestClaims{
+		UserID: userID.String(),
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expDate.Unix(),
+			IssuedAt:  time.Now().Unix(),
+			Issuer:    "LetsRest",
+		},
+	})
+
+	// Sign and get the complete encoded token as a string
+	tokenString, err := token.SignedString([]byte(secretForJwt))
+	Must(err, "token.SignedString([]byte(secretForJwt))")
+
+	ctx.JSON(http.StatusOK, Auth{AuthToken: tokenString})
 }
 
 func (s *Server) CreateRequest(ctx *iris.Context) {
@@ -159,5 +187,6 @@ func findHeader(name string, headers []Header) *Header {
 }
 
 func (s *Server) Test(ctx *iris.Context) {
-	ctx.JSON(http.StatusOK, ctx.Request.URL.String())
+	dump, _ := httputil.DumpRequest(ctx.Request, true)
+	ctx.WriteString(string(dump))
 }
