@@ -2,14 +2,16 @@ package letsrest
 
 import (
 	"errors"
-	"github.com/speps/go-hashids"
+	"github.com/nu7hatch/gouuid"
+	"strings"
 	"sync"
 )
 
 type DataStore interface {
 	GetRequest(id string) (*Request, error)
-	CreateRequest(user *User, id string) (*Request, error)
+	CreateRequest(user *User, name string) (*Request, error)
 	ExecRequest(id string, data *RequestData) (*Request, error)
+	CopyRequest(user *User, id string) (*Request, error)
 	List(user *User) (requests []*Request, err error)
 	Delete(id string) error
 	SetResponse(id string, response *Response, err error) error
@@ -19,17 +21,12 @@ type DataStore interface {
 }
 
 func NewDataStore(r Requester) DataStore {
-	hd := hashids.NewData()
-	hd.Salt = "this is my salt"
-	hd.MinLength = 20
-
 	store := &MapDataStore{
 		requester:      r,
 		requestsByUser: make(map[string][]*Request),
 		requests:       make(map[string]*Request),
 		users:          make(map[string]*User),
 		requestCh:      make(chan *Request, 1000),
-		hd:             hd,
 	}
 
 	go store.ListenForTasks()
@@ -39,8 +36,6 @@ func NewDataStore(r Requester) DataStore {
 
 type MapDataStore struct {
 	sync.RWMutex // protecting maps
-
-	hd *hashids.HashIDData
 
 	requestCh chan *Request
 
@@ -84,10 +79,8 @@ func (s *MapDataStore) GetRequest(id string) (*Request, error) {
 }
 
 func (s *MapDataStore) CreateRequest(user *User, name string) (*Request, error) {
-	id, err := s.generateId()
-	Must(err, "s.generateId()")
 	request := &Request{
-		ID:     id,
+		ID:     s.generateId(),
 		Name:   name,
 		Status: &ExecStatus{Status: "idle"},
 		UserID: user.ID,
@@ -96,14 +89,16 @@ func (s *MapDataStore) CreateRequest(user *User, name string) (*Request, error) 
 	s.Lock()
 	defer s.Unlock()
 
-	s.requests[id] = request
+	s.requests[request.ID] = request
 	s.requestsByUser[user.ID] = append(s.requestsByUser[user.ID], request)
-	return request, err
+	return request, nil
 }
 
-func (s *MapDataStore) generateId() (string, error) {
-	h := hashids.NewWithData(s.hd)
-	return h.Encode([]int{len(s.requests)})
+func (s *MapDataStore) generateId() string {
+	u, err := uuid.NewV4()
+	Must(err, "uuid.NewV4()")
+
+	return strings.Replace(u.String(), "-", "", -1)
 }
 
 func (s *MapDataStore) ExecRequest(id string, data *RequestData) (*Request, error) {
@@ -115,6 +110,28 @@ func (s *MapDataStore) ExecRequest(id string, data *RequestData) (*Request, erro
 		request.Status.Error = ""
 		s.requestCh <- request
 		return request, nil
+	}
+
+	return nil, errors.New("request not found")
+}
+
+func (s *MapDataStore) CopyRequest(user *User, id string) (*Request, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	if request, ok := s.requests[id]; ok {
+		newRequest := &Request{
+			ID:     s.generateId(),
+			Name:   request.Name,
+			Status: &ExecStatus{Status: "idle"},
+			UserID: user.ID,
+		}
+		if request.RequestData != nil {
+			newRequest.RequestData = &*request.RequestData
+		}
+		s.requests[newRequest.ID] = newRequest
+		s.requestsByUser[user.ID] = append(s.requestsByUser[user.ID], newRequest)
+		return newRequest, nil
 	}
 
 	return nil, errors.New("request not found")

@@ -8,12 +8,12 @@ import (
 
 // LetsRestClaims claims in terminology of jwt just a data that serialized in jwt token
 type LetsRestClaims struct {
-	UserID string
+	UserID string `json:"user_id"`
 	jwt.StandardClaims
 }
 
 type Auth struct {
-	UserID string `json:"user_id"`
+	UserID    string `json:"user_id"`
 	AuthToken string `json:"auth_token"`
 }
 

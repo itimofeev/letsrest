@@ -67,6 +67,7 @@ func IrisHandler(store DataStore) *iris.Framework {
 		requests.Get("", srv.ListRequests)
 
 		v1.Get("/requests/:id", srv.GetRequest)
+		v1.Post("/requests/:id/copy", srv.CheckAuthToken, srv.CopyRequest)
 
 		v1.Any("/test", srv.Test)
 	}
@@ -169,6 +170,17 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 
 	if req == nil {
 		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, req)
+}
+
+
+func (s *Server) CopyRequest(ctx *iris.Context) {
+	req, err := s.store.CopyRequest(ctx.Get("LetsRestUser").(*User), ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
 

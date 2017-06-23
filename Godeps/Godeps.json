@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/itimofeev/letsrest",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
 	],
@@ -20,6 +20,11 @@
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Comment": "v1.1.0",
 			"Rev": "346938d642f2ec3594ed81d874461961cd0faa76"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v3.0.0-20-ga539ee1",
+			"Rev": "a539ee1a749a2b895533f979515ac7e6e0f5b650"
 		},
 		{
 			"ImportPath": "github.com/fatih/structs",
@@ -213,6 +218,10 @@
 			"Rev": "4e24498b31dba4683efb9d35c1c8a91e2eda28c8"
 		},
 		{
+			"ImportPath": "github.com/nu7hatch/gouuid",
+			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
+		},
+		{
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",
 			"Comment": "v1.0.0",
 			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -229,11 +238,6 @@
 		{
 			"ImportPath": "github.com/shurcooL/sanitized_anchor_name",
 			"Rev": "1dba4b3954bc059efc3991ec364f9f9a35f597d2"
-		},
-		{
-			"ImportPath": "github.com/speps/go-hashids",
-			"Comment": "v1.0.0-15-g6fe7228",
-			"Rev": "6fe72284916ad2a7ec7b7dc89fd7b124809b7eb8"
 		},
 		{
 			"ImportPath": "github.com/square/go-jose",
