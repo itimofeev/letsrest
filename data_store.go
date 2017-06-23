@@ -11,7 +11,6 @@ type DataStore interface {
 	CreateRequest(user *User, id string) (*Request, error)
 	ExecRequest(id string, data *RequestData) (*Request, error)
 	List(user *User) (requests []*Request, err error)
-	Get(id string) (request *Request, err error)
 	Delete(id string) error
 	SetResponse(id string, response *Response, err error) error
 
@@ -121,18 +120,8 @@ func (s *MapDataStore) ExecRequest(id string, data *RequestData) (*Request, erro
 	return nil, errors.New("request not found")
 }
 
-func (s *MapDataStore) Get(id string) (request *Request, err error) {
-	s.RLock()
-	defer s.RUnlock()
-
-	if data, ok := s.requests[id]; ok {
-		return data, nil
-	}
-	return nil, nil
-}
-
 func (s *MapDataStore) List(user *User) (requests []*Request, err error) {
-	if len(s.requests) == 0 {
+	if len(s.requestsByUser[user.ID]) == 0 {
 		return make([]*Request, 0), nil
 	}
 

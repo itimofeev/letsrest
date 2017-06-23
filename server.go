@@ -64,8 +64,9 @@ func IrisHandler(store DataStore) *iris.Framework {
 
 		requests.Post("", srv.CreateRequest)
 		requests.Put("/:id", srv.ExecRequest)
-		requests.Get("/:id", srv.GetRequest)
-		requests.Get("", srv.GetRequests)
+		requests.Get("", srv.ListRequests)
+
+		v1.Get("/requests/:id", srv.GetRequest)
 
 		v1.Any("/test", srv.Test)
 	}
@@ -160,7 +161,7 @@ func (s *Server) ExecRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
-	req, err := s.store.Get(ctx.Param("id"))
+	req, err := s.store.GetRequest(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -174,7 +175,7 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 	ctx.JSON(http.StatusOK, req)
 }
 
-func (s *Server) GetRequests(ctx *iris.Context) {
+func (s *Server) ListRequests(ctx *iris.Context) {
 	requests, err := s.store.List(ctx.Get("LetsRestUser").(*User))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
