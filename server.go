@@ -3,8 +3,8 @@ package letsrest
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/iris-contrib/middleware/logger"
 	"github.com/kataras/iris"
+	"github.com/kataras/iris/context"
 	"golang.org/x/time/rate"
 	"net/http"
 	"net/http/httputil"
@@ -33,24 +33,23 @@ type Server struct {
 	anonymLimiter *rate.Limiter
 }
 
-func IrisHandler(store DataStore) *iris.Framework {
+func IrisHandler(store DataStore) *iris.Application {
 	srv := NewServer(store)
 	api := iris.New()
-	api.UseFunc(logger.New())
-	api.UseFunc(func(ctx *iris.Context) {
-		d, _ := httputil.DumpRequest(ctx.Request, true)
+	api.Use(func(ctx context.Context) {
+		d, _ := httputil.DumpRequest(ctx.Request(), true)
 		fmt.Println(string(d))
 		ctx.Next()
 	})
 
-	api.Get("/", func(ctx *iris.Context) {
-		ctx.JSON(http.StatusOK, "OK")
+	api.Get("/", func(ctx context.Context) {
+		ctx.JSON("OK")
 	})
 
 	v1 := api.Party("/api/v1")
 	{
-		v1.Get("/", func(ctx *iris.Context) {
-			ctx.JSON(http.StatusOK, "OK")
+		v1.Get("/", func(ctx context.Context) {
+			ctx.JSON("OK")
 			return
 		})
 
@@ -63,11 +62,11 @@ func IrisHandler(store DataStore) *iris.Framework {
 		requests := v1.Party("/requests", srv.CheckAuthToken)
 
 		requests.Post("", srv.CreateRequest)
-		requests.Put("/:id", srv.ExecRequest)
+		requests.Put("/{id:string}", srv.ExecRequest)
 		requests.Get("", srv.ListRequests)
 
-		v1.Get("/requests/:id", srv.GetRequest)
-		v1.Post("/requests/:id/copy", srv.CheckAuthToken, srv.CopyRequest)
+		v1.Get("/requests/{id:string}", srv.GetRequest)
+		v1.Post("/requests/{id:string}/copy", srv.CheckAuthToken, srv.CopyRequest)
 
 		v1.Any("/test", srv.Test)
 	}
@@ -75,13 +74,13 @@ func IrisHandler(store DataStore) *iris.Framework {
 	return api
 }
 
-func (s *Server) CheckAuthToken(ctx *iris.Context) {
-	authHeader, ok := ctx.Request.Header["Authorization"]
+func (s *Server) CheckAuthToken(ctx context.Context) {
+	authHeader, ok := ctx.Request().Header["Authorization"]
 
 	if !ok {
-		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
-		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
-		ctx.ResponseWriter.Write([]byte("Auth header not found"))
+		ctx.ResponseWriter().Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter().Write([]byte("Auth header not found"))
 		ctx.StopExecution()
 		return
 	}
@@ -90,34 +89,34 @@ func (s *Server) CheckAuthToken(ctx *iris.Context) {
 
 	user, err := userFromAuthToken(authToken)
 	if err != nil {
-		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
-		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
-		ctx.ResponseWriter.Write([]byte("Unable to decode auth token"))
+		ctx.ResponseWriter().Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter().Write([]byte("Unable to decode auth token"))
 		ctx.StopExecution()
 		return
 	}
 	user, err = s.store.GetUser(user.ID)
 	if err != nil {
-		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
-		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
-		ctx.ResponseWriter.Write([]byte("Error retrieving user from store"))
+		ctx.ResponseWriter().Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter().Write([]byte("Error retrieving user from store"))
 		ctx.StopExecution()
 		return
 	}
 
 	if user == nil {
-		ctx.ResponseWriter.Header().Add("Content-Type", "application/json")
-		ctx.ResponseWriter.WriteHeader(http.StatusUnauthorized)
-		ctx.ResponseWriter.Write([]byte("User not found in store"))
+		ctx.ResponseWriter().Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+		ctx.ResponseWriter().Write([]byte("User not found in store"))
 		ctx.StopExecution()
 		return
 	}
 
-	ctx.Set("LetsRestUser", user)
+	ctx.Values().Set("LetsRestUser", user)
 	ctx.Next()
 }
 
-func (s *Server) CreateAuthToken(ctx *iris.Context) {
+func (s *Server) CreateAuthToken(ctx context.Context) {
 	user := createUser()
 	err := s.store.PutUser(user)
 	if err != nil {
@@ -125,75 +124,82 @@ func (s *Server) CreateAuthToken(ctx *iris.Context) {
 		return
 	}
 	auth := createAuthToken(user)
-	ctx.JSON(http.StatusOK, auth)
+	ctx.JSON(auth)
 }
 
-func (s *Server) CreateRequest(ctx *iris.Context) {
+func (s *Server) CreateRequest(ctx context.Context) {
 	name := &struct {
 		Name string `json:"name"`
 	}{}
 	err := ctx.ReadJSON(name)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
+		ctx.StatusCode(http.StatusBadRequest)
+		ctx.JSON(err.Error())
 		return
 	}
 
-	request, err := s.store.CreateRequest(ctx.Get("LetsRestUser").(*User), name.Name)
+	request, err := s.store.CreateRequest(ctx.Values().Get("LetsRestUser").(*User), name.Name)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
+		ctx.StatusCode(http.StatusInternalServerError)
+		ctx.JSON(err.Error())
 		return
 	}
-	ctx.JSON(http.StatusCreated, request)
+	ctx.JSON(request)
 }
 
-func (s *Server) ExecRequest(ctx *iris.Context) {
+func (s *Server) ExecRequest(ctx context.Context) {
 	data := &RequestData{}
 	err := ctx.ReadJSON(data)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
+		ctx.StatusCode(http.StatusBadRequest)
+		ctx.JSON(err.Error())
 		return
 	}
-	req, err := s.store.ExecRequest(ctx.Param("id"), data)
+	req, err := s.store.ExecRequest(ctx.Params().Get("id"), data)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
+		ctx.StatusCode(http.StatusInternalServerError)
+		ctx.JSON(err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, req)
+	ctx.JSON(req)
 }
 
-func (s *Server) GetRequest(ctx *iris.Context) {
-	req, err := s.store.GetRequest(ctx.Param("id"))
+func (s *Server) GetRequest(ctx context.Context) {
+	req, err := s.store.GetRequest(ctx.Params().Get("id"))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
+		ctx.StatusCode(http.StatusInternalServerError)
+		ctx.JSON(err.Error())
 		return
 	}
 
 	if req == nil {
-		ctx.JSON(http.StatusNotFound, RequestNotFoundResponse(ctx.Param("id")))
+		ctx.StatusCode(http.StatusNotFound)
+		ctx.JSON(RequestNotFoundResponse(ctx.Params().Get("id")))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, req)
+	ctx.JSON(req)
 }
 
-
-func (s *Server) CopyRequest(ctx *iris.Context) {
-	req, err := s.store.CopyRequest(ctx.Get("LetsRestUser").(*User), ctx.Param("id"))
+func (s *Server) CopyRequest(ctx context.Context) {
+	req, err := s.store.CopyRequest(ctx.Values().Get("LetsRestUser").(*User), ctx.Params().Get("id"))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
+		ctx.StatusCode(http.StatusInternalServerError)
+		ctx.JSON(err.Error())
 		return
 	}
 
-	ctx.JSON(http.StatusOK, req)
+	ctx.JSON(req)
 }
 
-func (s *Server) ListRequests(ctx *iris.Context) {
-	requests, err := s.store.List(ctx.Get("LetsRestUser").(*User))
+func (s *Server) ListRequests(ctx context.Context) {
+	requests, err := s.store.List(ctx.Values().Get("LetsRestUser").(*User))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
+		ctx.StatusCode(http.StatusBadRequest)
+		ctx.JSON(err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, requests)
+	ctx.JSON(requests)
 }
 
 func findHeader(name string, headers []Header) *Header {
@@ -206,7 +212,7 @@ func findHeader(name string, headers []Header) *Header {
 	return nil
 }
 
-func (s *Server) Test(ctx *iris.Context) {
-	dump, _ := httputil.DumpRequest(ctx.Request, true)
+func (s *Server) Test(ctx context.Context) {
+	dump, _ := httputil.DumpRequest(ctx.Request(), true)
 	ctx.WriteString(string(dump))
 }

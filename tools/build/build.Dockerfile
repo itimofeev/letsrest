@@ -1,9 +1,9 @@
 FROM golang:1.8.3
 
-RUN go get github.com/tools/godep
+RUN go get github.com/tools/godep && mkdir /_goTestOutput
 
 WORKDIR /
 ADD tools/build/Makefile /
-COPY ./ /go/src/github.com/itimofeev/letsrest/
+COPY ./ /usr/local/go/src/github.com/itimofeev/letsrest
 
 CMD ["make", "build"]

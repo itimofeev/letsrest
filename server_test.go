@@ -139,7 +139,7 @@ func createRequest(t *testing.T) (*Request, *Auth) {
 		WithHeader("Authorization", "Bearer "+auth.AuthToken).
 		WithJSON(request).
 		Expect().
-		Status(http.StatusCreated).
+		Status(http.StatusOK).
 		JSON()
 
 	resp.Object().ValueEqual("name", "some name")
