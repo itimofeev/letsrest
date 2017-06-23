@@ -136,9 +136,7 @@ func (s *Server) CreateRequest(ctx *iris.Context) {
 		return
 	}
 
-	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
-
-	request, err := store.CreateRequest(name.Name)
+	request, err := s.store.CreateRequest(ctx.Get("LetsRestUser").(*User), name.Name)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -153,8 +151,7 @@ func (s *Server) ExecRequest(ctx *iris.Context) {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
-	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
-	req, err := store.ExecRequest(ctx.Param("id"), data)
+	req, err := s.store.ExecRequest(ctx.Param("id"), data)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -163,8 +160,7 @@ func (s *Server) ExecRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetRequest(ctx *iris.Context) {
-	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
-	req, err := store.Get(ctx.Param("id"))
+	req, err := s.store.Get(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -179,9 +175,7 @@ func (s *Server) GetRequest(ctx *iris.Context) {
 }
 
 func (s *Server) GetRequests(ctx *iris.Context) {
-	store := s.store.RequestStore(ctx.Get("LetsRestUser").(*User))
-
-	requests, err := store.List()
+	requests, err := s.store.List(ctx.Get("LetsRestUser").(*User))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return

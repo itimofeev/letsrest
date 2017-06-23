@@ -58,7 +58,7 @@ func TestServer_GetReadyResponse(t *testing.T) {
 	request, auth := createRequest(t)
 
 	resp := &Response{StatusCode: 200}
-	store.RequestStore(&User{ID: auth.UserID}).SetResponse(request.ID, resp, nil)
+	store.SetResponse(request.ID, resp, nil)
 
 	obj := tester(t).GET("/api/v1/requests/{ID}", request.ID).
 		WithHeader("Authorization", "Bearer "+auth.AuthToken).
@@ -73,7 +73,7 @@ func TestServer_GetReadyResponse(t *testing.T) {
 func TestServer_GetErrorResponse(t *testing.T) {
 	request, auth := createRequest(t)
 
-	store.RequestStore(&User{ID: auth.UserID}).SetResponse(request.ID, nil, errors.New("error.while.do.request"))
+	store.SetResponse(request.ID, nil, errors.New("error.while.do.request"))
 
 	obj := tester(t).GET("/api/v1/requests/{ID}", request.ID).
 		WithHeader("Authorization", "Bearer "+auth.AuthToken).

@@ -8,6 +8,8 @@ type Request struct {
 	RequestData *RequestData `json:"data,omitempty"`
 	Response    *Response    `json:"response,omitempty"`
 	Status      *ExecStatus  `json:"status"`
+
+	UserID string `json:"user_id"`
 }
 
 type RequestData struct {
