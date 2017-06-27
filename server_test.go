@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var store = NewDataStore(NewWorkerPool(&testRequester{}))
+var store = NewDataStore(&Config{MongoURL: "192.168.99.100:27017"}, NewWorkerPool(&testRequester{}))
 
 type testRequester struct {
 }

@@ -6,11 +6,11 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"strings"
+	"time"
 )
 
-func NewMongoDataStore(wp WorkerPool) *MongoDataStore {
-	mongoAddress := "192.168.99.100:27017"
-	session, err := mgo.Dial(mongoAddress)
+func NewMongoDataStore(config *Config, wp WorkerPool) *MongoDataStore {
+	session, err := mgo.DialWithTimeout(config.MongoURL, time.Second)
 	if err != nil {
 		panic(err)
 	}

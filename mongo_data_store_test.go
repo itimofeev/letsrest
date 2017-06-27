@@ -15,7 +15,7 @@ func (wp *fakeWp) AddRequest(*Request, CanSetResponse) {
 
 }
 
-var mgStore = NewMongoDataStore(&fakeWp{})
+var mgStore = NewMongoDataStore(&Config{MongoURL: "192.168.99.100:27017"}, &fakeWp{})
 
 func Test_MongoDataStore_CreateUser(t *testing.T) {
 	user := createTestUser(t)
