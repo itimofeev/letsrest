@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sort"
 )
 
 type Requester interface {
@@ -39,10 +40,11 @@ func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 		return nil, err
 	}
 
-	var h []Header
+	var h HeaderSlice
 	for key, value := range resp.Header {
 		h = append(h, Header{Name: key, Value: strings.Join(value, ", ")})
 	}
+	sort.Sort(h)
 
 	contentTypeHeader := findHeader("Content-Type", h)
 	contentType := ""

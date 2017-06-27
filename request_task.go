@@ -1,5 +1,7 @@
 package letsrest
 
+import "strings"
+
 // информация задаче на выполнение запроса
 type Request struct {
 	ID   string `json:"id"`
@@ -18,12 +20,18 @@ type RequestData struct {
 	Headers []Header `json:"headers"`
 }
 
+type HeaderSlice []Header
+
+func (p HeaderSlice) Len() int           { return len(p) }
+func (p HeaderSlice) Less(i, j int) bool { return strings.Compare(p[i].Name, p[j].Name) < 0 }
+func (p HeaderSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 // информация об ответе на запрос
 type Response struct {
-	StatusCode  int      `json:"status_code,omitempty"`
-	Headers     []Header `json:"headers,omitempty"`
-	BodyLen     int      `json:"body_len,omitempty"`
-	ContentType string   `json:"content_type,omitempty"`
+	StatusCode  int         `json:"status_code,omitempty"`
+	Headers     HeaderSlice `json:"headers,omitempty"`
+	BodyLen     int         `json:"body_len,omitempty"`
+	ContentType string      `json:"content_type,omitempty"`
 }
 
 // Header данные о заголовке
