@@ -13,6 +13,8 @@ services:
     image: mongo:3.5.9
     volumes:
       - ./db:/data/db
+    ports:
+      - "27017:27017"
 
   nginx:
     image: nginx:1.13.1-alpine
