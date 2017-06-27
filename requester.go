@@ -4,8 +4,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sort"
+	"strings"
+	"time"
 )
 
 type Requester interface {
@@ -33,6 +34,8 @@ func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 	for _, header := range request.Headers {
 		req.Header.Add(header.Name, header.Value)
 	}
+
+	start := time.Now()
 
 	resp, err := http.DefaultClient.Do(req)
 
@@ -63,6 +66,7 @@ func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 		Headers:     h,
 		BodyLen:     len(bodyData),
 		ContentType: contentType,
+		Duration:    time.Now().Sub(start),
 	}
 	return
 }

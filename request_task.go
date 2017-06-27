@@ -1,6 +1,9 @@
 package letsrest
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // информация задаче на выполнение запроса
 type Request struct {
@@ -28,10 +31,11 @@ func (p HeaderSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // информация об ответе на запрос
 type Response struct {
-	StatusCode  int         `json:"status_code,omitempty"`
-	Headers     HeaderSlice `json:"headers,omitempty"`
-	BodyLen     int         `json:"body_len,omitempty"`
-	ContentType string      `json:"content_type,omitempty"`
+	StatusCode  int           `json:"status_code,omitempty"`
+	Headers     HeaderSlice   `json:"headers,omitempty"`
+	BodyLen     int           `json:"body_len,omitempty"`
+	ContentType string        `json:"content_type,omitempty"`
+	Duration    time.Duration `json:"duration,omitempty"` // in ns
 }
 
 // Header данные о заголовке
