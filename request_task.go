@@ -7,20 +7,20 @@ import (
 
 // информация задаче на выполнение запроса
 type Request struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID   string `json:"id" bson:"_id"`
+	Name string `json:"name" bson:"name"`
 
-	RequestData *RequestData `json:"data,omitempty"`
-	Response    *Response    `json:"response,omitempty"`
-	Status      *ExecStatus  `json:"status"`
+	RequestData *RequestData `json:"data,omitempty" bson:"data"`
+	Response    *Response    `json:"response,omitempty" bson:"response"`
+	Status      *ExecStatus  `json:"status" bson:"status"`
 
-	UserID string `json:"user_id"`
+	UserID string `json:"user_id" bson:"user_id"`
 }
 
 type RequestData struct {
-	URL     string   `json:"url"`
-	Method  string   `json:"method"`
-	Headers []Header `json:"headers"`
+	URL     string   `json:"url" bson:"url"`
+	Method  string   `json:"method" bson:"method"`
+	Headers []Header `json:"headers" bson:"headers"`
 }
 
 type HeaderSlice []Header
@@ -31,24 +31,24 @@ func (p HeaderSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // информация об ответе на запрос
 type Response struct {
-	StatusCode  int           `json:"status_code,omitempty"`
-	Headers     HeaderSlice   `json:"headers,omitempty"`
-	BodyLen     int           `json:"body_len,omitempty"`
-	ContentType string        `json:"content_type,omitempty"`
-	Duration    time.Duration `json:"duration,omitempty"` // in ns
+	StatusCode  int           `json:"status_code,omitempty" bson:"status_code"`
+	Headers     HeaderSlice   `json:"headers,omitempty" bson:"headers"`
+	BodyLen     int           `json:"body_len,omitempty" bson:"body_len"`
+	ContentType string        `json:"content_type,omitempty" bson:"content_type"`
+	Duration    time.Duration `json:"duration,omitempty" bson:"duration"` // in ns
 }
 
 // Header данные о заголовке
 type Header struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name  string `json:"name" bson:"name"`
+	Value string `json:"value" bson:"value"`
 }
 
 type ExecStatus struct {
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
+	Status string `json:"status" bson:"status"`
+	Error  string `json:"error,omitempty" bson:"error"`
 }
 
 type User struct {
-	ID string `json:"id"`
+	ID string `json:"id" bson:"_id"`
 }

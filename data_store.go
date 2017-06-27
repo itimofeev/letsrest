@@ -21,8 +21,8 @@ type DataStore interface {
 	GetUser(id string) (*User, error)
 }
 
-func NewDataStore(wp WorkerPool) DataStore {
-	return NewMapDataStore(wp)
+func NewDataStore(config *Config, wp WorkerPool) DataStore {
+	return NewMongoDataStore(config, wp)
 }
 
 func NewMapDataStore(wp WorkerPool) *MapDataStore {
