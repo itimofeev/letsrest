@@ -8,28 +8,30 @@ import (
 )
 
 type DataStore interface {
+	CanSetResponse
+
 	GetRequest(id string) (*Request, error)
 	CreateRequest(user *User, name string) (*Request, error)
 	ExecRequest(id string, data *RequestData) (*Request, error)
 	CopyRequest(user *User, id string) (*Request, error)
 	List(user *User) (requests []*Request, err error)
 	Delete(id string) error
-	SetResponse(id string, response *Response, err error) error
 
 	PutUser(*User) error
 	GetUser(id string) (*User, error)
 }
 
-func NewDataStore(r Requester) DataStore {
+func NewDataStore(wp WorkerPool) DataStore {
+	return NewMapDataStore(wp)
+}
+
+func NewMapDataStore(wp WorkerPool) *MapDataStore {
 	store := &MapDataStore{
-		requester:      r,
+		wp:             wp,
 		requestsByUser: make(map[string][]*Request),
 		requests:       make(map[string]*Request),
 		users:          make(map[string]*User),
-		requestCh:      make(chan *Request, 1000),
 	}
-
-	go store.ListenForTasks()
 
 	return store
 }
@@ -37,19 +39,10 @@ func NewDataStore(r Requester) DataStore {
 type MapDataStore struct {
 	sync.RWMutex // protecting maps
 
-	requestCh chan *Request
-
 	requestsByUser map[string][]*Request
 	requests       map[string]*Request
 	users          map[string]*User
-	requester      Requester
-}
-
-func (s *MapDataStore) ListenForTasks() {
-	for request := range s.requestCh {
-		resp, err := s.requester.Do(request.RequestData)
-		s.SetResponse(request.ID, resp, err)
-	}
+	wp             WorkerPool
 }
 
 func (s *MapDataStore) PutUser(user *User) error {
@@ -105,7 +98,7 @@ func (s *MapDataStore) ExecRequest(id string, data *RequestData) (*Request, erro
 		request.RequestData = data
 		request.Status.Status = "in_progress"
 		request.Status.Error = ""
-		s.requestCh <- request
+		s.wp.AddRequest(request, s)
 		return request, nil
 	}
 

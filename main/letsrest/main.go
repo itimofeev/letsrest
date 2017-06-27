@@ -5,6 +5,7 @@ import (
 )
 
 func main() {
-	framework := letsrest.IrisHandler(letsrest.NewDataStore(letsrest.NewHTTPRequester()))
+	pool := letsrest.NewWorkerPool(letsrest.NewHTTPRequester())
+	framework := letsrest.IrisHandler(letsrest.NewDataStore(pool))
 	framework.Listen(":8080")
 }

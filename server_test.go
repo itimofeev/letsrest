@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var store = NewDataStore(&testRequester{})
+var store = NewDataStore(NewWorkerPool(&testRequester{}))
 
 type testRequester struct {
 }
