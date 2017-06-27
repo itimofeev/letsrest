@@ -6,7 +6,7 @@ import (
 )
 
 func TestMapRequestStore_CRUD(t *testing.T) {
-	store := NewDataStore(NewWorkerPool(&testRequester{}))
+	store := NewMapDataStore(NewWorkerPool(&testRequester{}))
 	user1 := &User{ID: "1"}
 	store.PutUser(user1)
 

@@ -39,7 +39,7 @@ func Test_MongoDataStore_CRUDRequest(t *testing.T) {
 	requests, err := mgStore.List(user)
 	require.Nil(t, err)
 	assert.Len(t, requests, 1)
-	assert.Equal(t, *request, requests[0])
+	assert.Equal(t, request, requests[0])
 
 	assert.Nil(t, mgStore.Delete(request.ID))
 	notExists, err := mgStore.GetRequest(request.ID)

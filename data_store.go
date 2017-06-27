@@ -22,7 +22,7 @@ type DataStore interface {
 }
 
 func NewDataStore(wp WorkerPool) DataStore {
-	return NewMapDataStore(wp)
+	return NewMongoDataStore(wp)
 }
 
 func NewMapDataStore(wp WorkerPool) *MapDataStore {
