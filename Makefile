@@ -1,13 +1,16 @@
 
 
 clean:
-	rm -r tools/target/*
+	rm -rf tools/target/*
 
 build-image:
 	docker build -t letsrest/build --no-cache --force-rm=true -f ./tools/build/build.Dockerfile .
 
 cp-configs:
 	cp ./tools/prod-files/* ./tools/target/
+
+cp-makefile:
+	cp Makefile ./tools/target
 
 build-letsrest: build-image
 	docker run -v letsrest:/go/src -t letsrest/build make build
@@ -18,10 +21,22 @@ build-letsrest: build-image
 
 build-frontend:
 	cp -r /Users/ilyatimofee/prog/js/letsrest-ui/build ./tools/target/frontend
-	tar -jcvf ./tools/target/frontend.tar.bz2 ./tools/target/frontend
+	cd ./tools/target ; tar -jcvf frontend.tar.bz2 frontend
 	rm -r ./tools/target/frontend
 
-build: clean build-letsrest cp-configs build-frontend
+build: clean build-letsrest cp-configs cp-makefile build-frontend
 
-deploy:
-	scp -r tools/target/* ilyaufo@188.166.26.165:/home/ilyaufo/letsrest
+upload:
+	rsync -ravezP ./tools/target/* -e ssh ilyaufo@188.166.26.165:/home/ilyaufo/letsrest
+
+
+prepare-run:
+	docker load -i letsrest.img
+	tar -jxvf frontend.tar.bz2
+	chown ilyaufo frontend
+
+run:
+	docker-compose -p letsrest -f prod.docker-compose.yml up -d --build
+
+stop:
+	docker-compose -p letsrest -f prod.docker-compose.yml stop

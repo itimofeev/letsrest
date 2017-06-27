@@ -180,7 +180,9 @@ func (s *MongoDataStore) CopyRequest(user *User, id string) (*Request, error) {
 	return newRequest, nil
 }
 
-func (s *MongoDataStore) List(user *User) (requests []*Request, err error) {
+func (s *MongoDataStore) List(user *User) ([]*Request, error) {
+	requests := make([]*Request, 0)
+
 	session := s.session.Copy()
 	defer session.Close()
 
