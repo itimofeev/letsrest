@@ -2,7 +2,7 @@ package letsrest
 
 import (
 	"github.com/dgrijalva/jwt-go"
-	"github.com/nu7hatch/gouuid"
+	"github.com/rs/xid"
 	"time"
 )
 
@@ -18,9 +18,7 @@ type Auth struct {
 }
 
 func createUser() *User {
-	userID, err := uuid.NewV4()
-	Must(err, "uuid.NewV4()")
-	return &User{ID: userID.String()}
+	return &User{ID: xid.New().String()}
 }
 
 func createAuthToken(user *User) *Auth {

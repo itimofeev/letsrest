@@ -2,7 +2,7 @@ package letsrest
 
 import (
 	"errors"
-	"github.com/nu7hatch/gouuid"
+	"github.com/rs/xid"
 	"strings"
 	"sync"
 )
@@ -95,10 +95,7 @@ func (s *MapDataStore) CreateRequest(user *User, name string) (*Request, error) 
 }
 
 func (s *MapDataStore) generateId() string {
-	u, err := uuid.NewV4()
-	Must(err, "uuid.NewV4()")
-
-	return strings.Replace(u.String(), "-", "", -1)
+	return strings.Replace(xid.New().String(), "-", "", -1)
 }
 
 func (s *MapDataStore) ExecRequest(id string, data *RequestData) (*Request, error) {
