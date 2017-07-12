@@ -57,7 +57,7 @@ func TestServer_GetNotExistedRequest(t *testing.T) {
 func TestServer_GetReadyResponse(t *testing.T) {
 	request, auth := createRequest(t)
 
-	resp := &Response{StatusCode: 200}
+	resp := &Response{StatusCode: 200, Body: "someBody"}
 	store.SetResponse(request.ID, resp, nil)
 
 	obj := tester(t).GET("/api/v1/requests/{ID}", request.ID).
@@ -67,6 +67,7 @@ func TestServer_GetReadyResponse(t *testing.T) {
 		JSON().Object()
 
 	obj.Value("response").Equal(resp)
+	obj.Value("status").Object().ValueEqual("status", "done")
 	obj.Value("status").Object().ValueEqual("status", "done")
 }
 
@@ -100,7 +101,7 @@ func TestServer_GetNotReadyResponse(t *testing.T) {
 func TestServer_ExecRequest(t *testing.T) {
 	request, auth := createRequest(t)
 
-	data := RequestData{Method: "hello", URL: "there"}
+	data := RequestData{Method: "hello", URL: "there", Body: "someBody"}
 
 	r := tester(t).PUT("/api/v1/requests/{ID}", request.ID).
 		WithHeader("Authorization", "Bearer "+auth.AuthToken).
@@ -112,6 +113,7 @@ func TestServer_ExecRequest(t *testing.T) {
 	r.Value("status").Object().ValueEqual("status", "in_progress")
 	r.Value("data").Object().ValueEqual("method", data.Method)
 	r.Value("data").Object().ValueEqual("url", data.URL)
+	r.Value("data").Object().ValueEqual("body", data.Body)
 	r.ValueEqual("data", data)
 }
 

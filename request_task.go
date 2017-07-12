@@ -21,6 +21,7 @@ type RequestData struct {
 	URL     string   `json:"url" bson:"url"`
 	Method  string   `json:"method" bson:"method"`
 	Headers []Header `json:"headers" bson:"headers"`
+	Body    string   `json:"body" bson:"body"`
 }
 
 type HeaderSlice []Header
@@ -33,6 +34,7 @@ func (p HeaderSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 type Response struct {
 	StatusCode  int           `json:"status_code,omitempty" bson:"status_code"`
 	Headers     HeaderSlice   `json:"headers,omitempty" bson:"headers"`
+	Body        string        `json:"body" bson:"body"`
 	BodyLen     int           `json:"body_len,omitempty" bson:"body_len"`
 	ContentType string        `json:"content_type,omitempty" bson:"content_type"`
 	Duration    time.Duration `json:"duration,omitempty" bson:"duration"` // in ns

@@ -40,3 +40,8 @@ run:
 
 stop:
 	docker-compose -p letsrest -f prod.docker-compose.yml stop
+
+# =====================
+
+run-mongo:
+	docker run -p 27017:27017 --name mg-letsrest -d mongo:3.5.9
