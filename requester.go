@@ -22,9 +22,9 @@ type HTTPRequester struct {
 
 func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 	var reader io.Reader
-	//if len(request.Body) > 0 {
-	//	reader = bytes.NewReader(request.Body)
-	//}
+	if len(request.Body) > 0 {
+		reader = strings.NewReader(request.Body)
+	}
 
 	req, err := http.NewRequest(request.Method, request.URL, reader)
 	if err != nil {
@@ -65,6 +65,7 @@ func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 		StatusCode:  resp.StatusCode,
 		Headers:     h,
 		BodyLen:     len(bodyData),
+		Body:        string(bodyData),
 		ContentType: contentType,
 		Duration:    time.Now().Sub(start),
 	}

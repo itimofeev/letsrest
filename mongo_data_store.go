@@ -102,6 +102,10 @@ func (s *MongoDataStore) CreateRequest(user *User, name string) (*Request, error
 		Name:   name,
 		Status: &ExecStatus{Status: "idle"},
 		UserID: user.ID,
+		RequestData: &RequestData{
+			Method:"GET",
+			Headers:make([]Header, 0),
+		},
 	}
 
 	session := s.session.Copy()
@@ -144,6 +148,30 @@ func (s *MongoDataStore) ExecRequest(id string, data *RequestData) (*Request, er
 	}
 
 	s.wp.AddRequest(&request, s)
+
+	return &request, nil
+}
+
+func (s *MongoDataStore) EditRequest(id, name string) (*Request, error) {
+	session := s.session.Copy()
+	defer session.Close()
+
+	c := session.DB("letsrest").C("requests")
+
+	var request Request
+	if err := c.FindId(id).One(&request); err != nil {
+		return nil, err
+	}
+
+	if request.ID == "" {
+		return nil, errors.New("request.not.found")
+	}
+
+	request.Name = name
+
+	if err := c.UpdateId(request.ID, request); err != nil {
+		return nil, err
+	}
 
 	return &request, nil
 }
