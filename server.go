@@ -63,6 +63,7 @@ func IrisHandler(store DataStore) *iris.Application {
 
 		requests.Post("", srv.CreateRequest)
 		requests.Put("/{id:string}", srv.ExecRequest)
+		requests.Delete("/{id:string}", srv.DeleteRequest)
 		requests.Get("", srv.ListRequests)
 
 		v1.Get("/requests/{id:string}", srv.GetRequest)
@@ -162,6 +163,16 @@ func (s *Server) ExecRequest(ctx context.Context) {
 		return
 	}
 	ctx.JSON(req)
+}
+
+func (s *Server) DeleteRequest(ctx context.Context) {
+	err := s.store.Delete(ctx.Params().Get("id"))
+	if err != nil {
+		ctx.StatusCode(http.StatusInternalServerError)
+		ctx.JSON(err.Error())
+		return
+	}
+	ctx.JSON("OK")
 }
 
 func (s *Server) GetRequest(ctx context.Context) {
