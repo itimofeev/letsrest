@@ -12,6 +12,7 @@ type DataStore interface {
 
 	GetRequest(id string) (*Request, error)
 	CreateRequest(user *User, name string) (*Request, error)
+	EditRequest(id, name string) (*Request, error)
 	ExecRequest(id string, data *RequestData) (*Request, error)
 	CopyRequest(user *User, id string) (*Request, error)
 	List(user *User) (requests []*Request, err error)
@@ -99,6 +100,17 @@ func (s *MapDataStore) ExecRequest(id string, data *RequestData) (*Request, erro
 		request.Status.Status = "in_progress"
 		request.Status.Error = ""
 		s.wp.AddRequest(request, s)
+		return request, nil
+	}
+
+	return nil, errors.New("request not found")
+}
+
+func (s *MapDataStore) EditRequest(id, name string) (*Request, error) {
+	s.Lock()
+	defer s.Unlock()
+	if request, ok := s.requests[id]; ok {
+		request.Name = name
 		return request, nil
 	}
 
