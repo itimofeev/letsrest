@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 )
-
+//интерфейс для работы с дс
 type DataStore interface {
 	CanSetResponse
 
@@ -36,7 +36,7 @@ func NewMapDataStore(wp WorkerPool) *MapDataStore {
 
 	return store
 }
-
+//хранятся данные в памяти
 type MapDataStore struct {
 	sync.RWMutex // protecting maps
 
@@ -45,7 +45,7 @@ type MapDataStore struct {
 	users          map[string]*User
 	wp             WorkerPool
 }
-
+//реализация методов
 func (s *MapDataStore) PutUser(user *User) error {
 	s.Lock()
 	defer s.Unlock()
