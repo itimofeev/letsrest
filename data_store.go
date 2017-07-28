@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 )
-//интерфейс для работы с дс
+//интерфейс для храниения данных
 type DataStore interface {
 	CanSetResponse
 
