@@ -26,17 +26,13 @@ func Test_MongoDataStore_CreateUser(t *testing.T) {
 }
 
 func Test_MongoDataStore_CRUDRequest(t *testing.T) {
-	user := createTestUser(t)
-
-	request, err := mgStore.CreateRequest(user, "my-cool-name")
-	require.Nil(t, err)
-	assert.Equal(t, "my-cool-name", request.Name)
+	request := createTestRequest(t)
 
 	getRequest, err := mgStore.GetRequest(request.ID)
 	require.Nil(t, err)
 	assert.Equal(t, request, getRequest)
 
-	requests, err := mgStore.List(user)
+	requests, err := mgStore.List(&User{ID: request.ID})
 	require.Nil(t, err)
 	assert.Len(t, requests, 1)
 	assert.Equal(t, request, requests[0])
@@ -48,14 +44,9 @@ func Test_MongoDataStore_CRUDRequest(t *testing.T) {
 }
 
 func Test_MongoDataStore_ExecRequest(t *testing.T) {
-	user := createTestUser(t)
-
-	request, err := mgStore.CreateRequest(user, "my-cool-name")
-	require.Nil(t, err)
-	assert.Equal(t, "my-cool-name", request.Name)
-
+	request := createTestRequest(t)
 	data := &RequestData{URL: "someUrl", Method: "someMethod", Headers: []Header{{Name: "headerName", Value: "HeaderValue"}}}
-	_, err = mgStore.ExecRequest(request.ID, data)
+	_, err := mgStore.ExecRequest(request.ID, data)
 	require.Nil(t, err)
 
 	getRequest, err := mgStore.GetRequest(request.ID)
@@ -67,14 +58,9 @@ func Test_MongoDataStore_ExecRequest(t *testing.T) {
 }
 
 func Test_MongoDataStore_SetResponse(t *testing.T) {
-	user := createTestUser(t)
-
-	request, err := mgStore.CreateRequest(user, "my-cool-name")
-	require.Nil(t, err)
-	assert.Equal(t, "my-cool-name", request.Name)
-
+	request := createTestRequest(t)
 	data := &RequestData{URL: "someUrl", Method: "someMethod", Headers: []Header{{Name: "headerName", Value: "HeaderValue"}}}
-	_, err = mgStore.ExecRequest(request.ID, data)
+	_, err := mgStore.ExecRequest(request.ID, data)
 	require.Nil(t, err)
 
 	response := &Response{
@@ -91,6 +77,26 @@ func Test_MongoDataStore_SetResponse(t *testing.T) {
 
 	assert.Equal(t, getRequest.Response, response)
 	assert.Equal(t, "done", getRequest.Status.Status)
+}
+
+func Test_MongoDataStore_FailOnExecRequestSimultaneously(t *testing.T) {
+	request := createTestRequest(t)
+	data := &RequestData{URL: "someUrl", Method: "someMethod", Headers: []Header{{Name: "headerName", Value: "HeaderValue"}}}
+	_, err := mgStore.ExecRequest(request.ID, data)
+	require.Nil(t, err)
+
+	_, err = mgStore.ExecRequest(request.ID, data)
+	require.EqualError(t, err, "error.request.already.in.progress")
+}
+
+func createTestRequest(t *testing.T) *Request {
+	user := createTestUser(t)
+
+	request, err := mgStore.CreateRequest(user, "my-cool-name")
+	require.Nil(t, err)
+	assert.Equal(t, "my-cool-name", request.Name)
+
+	return request
 }
 
 func createTestUser(t *testing.T) *User {

@@ -66,9 +66,9 @@ func IrisHandler(store DataStore) *iris.Application {
 		requests.Patch("/{id:string}", srv.EditRequest)
 		requests.Delete("/{id:string}", srv.DeleteRequest)
 		requests.Get("", srv.ListRequests)
+		requests.Post("/{id:string}/copy", srv.CopyRequest)
 
 		v1.Get("/requests/{id:string}", srv.GetRequest)
-		v1.Post("/requests/{id:string}/copy", srv.CheckAuthToken, srv.CopyRequest)
 
 		v1.Any("/test", srv.Test)
 	}
@@ -165,7 +165,6 @@ func (s *Server) ExecRequest(ctx context.Context) {
 	}
 	ctx.JSON(req)
 }
-
 
 func (s *Server) EditRequest(ctx context.Context) {
 	name := &struct {

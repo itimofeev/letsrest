@@ -1,7 +1,7 @@
 package letsrest
 
 import (
-	"github.com/kataras/iris/core/errors"
+	"errors"
 	"github.com/rs/xid"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -103,8 +103,8 @@ func (s *MongoDataStore) CreateRequest(user *User, name string) (*Request, error
 		Status: &ExecStatus{Status: "idle"},
 		UserID: user.ID,
 		RequestData: &RequestData{
-			Method:"GET",
-			Headers:make([]Header, 0),
+			Method:  "GET",
+			Headers: make([]Header, 0),
 		},
 	}
 
@@ -137,6 +137,10 @@ func (s *MongoDataStore) ExecRequest(id string, data *RequestData) (*Request, er
 
 	if request.ID == "" {
 		return nil, errors.New("request.not.found")
+	}
+
+	if request.Status.Status == "in_progress" {
+		return nil, errors.New("error.request.already.in.progress")
 	}
 
 	request.RequestData = data
