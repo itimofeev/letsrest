@@ -13,11 +13,40 @@ type Requester interface {
 	Do(request *RequestData) (*Response, error)
 }
 
-func NewHTTPRequester() *HTTPRequester {
-	return &HTTPRequester{}
+const defaultBodyLimit int64 = 1024 * 1024 * 10 // 10MB
+
+func NewHTTPRequester(maxBodySize ...int64) *HTTPRequester {
+	limit := defaultBodyLimit
+	if len(maxBodySize) > 0 {
+		limit = maxBodySize[0]
+	}
+	return &HTTPRequester{
+		maxBodySize: limit,
+		client:      newHTTPClient(),
+	}
+}
+
+func newHTTPClient() *HTTPClientDefault {
+	return &HTTPClientDefault{
+		client: http.DefaultClient,
+	}
+}
+
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+type HTTPClientDefault struct {
+	client *http.Client
+}
+
+func (c *HTTPClientDefault) Do(req *http.Request) (*http.Response, error) {
+	return c.client.Do(req)
 }
 
 type HTTPRequester struct {
+	maxBodySize int64
+	client      HTTPClient
 }
 
 func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
@@ -37,7 +66,7 @@ func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 
 	start := time.Now()
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 
 	if err != nil {
 		return nil, err
@@ -55,12 +84,8 @@ func (r *HTTPRequester) Do(request *RequestData) (cResp *Response, err error) {
 		contentType = contentTypeHeader.Value
 	}
 
-	// TODO ограничение на размер ответа
-	bodyData, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	limitedReader := &LimitedErrReader{N: r.maxBodySize, R: resp.Body}
+	bodyData, err := ioutil.ReadAll(limitedReader)
 	cResp = &Response{
 		StatusCode:  resp.StatusCode,
 		Headers:     h,

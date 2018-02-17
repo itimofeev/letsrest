@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 )
 
 // GenerateRandomBytes returns securely generated random bytes.
@@ -46,4 +48,23 @@ func GetJSON(i interface{}) string {
 	j, err := json.Marshal(i)
 	Must(err, "Ma")
 	return string(j)
+}
+
+type LimitedErrReader struct {
+	R io.Reader // underlying reader
+	N int64     // max bytes remaining
+}
+
+var bodySizeLimitExceededErr = errors.New("error.body.size.limit.exceeded")
+
+func (l *LimitedErrReader) Read(p []byte) (n int, err error) {
+	if l.N <= 0 {
+		return 0, bodySizeLimitExceededErr
+	}
+	if int64(len(p)) > l.N {
+		p = p[0:l.N]
+	}
+	n, err = l.R.Read(p)
+	l.N -= int64(n)
+	return
 }

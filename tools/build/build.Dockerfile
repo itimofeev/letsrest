@@ -1,4 +1,4 @@
-FROM golang:1.8.3
+FROM golang:1.9.3
 
 RUN go get github.com/tools/godep && mkdir /_goTestOutput
 

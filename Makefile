@@ -35,7 +35,7 @@ prepare-run:
 	tar -jxvf frontend.tar.bz2
 	chown ilyaufo frontend
 
-run:
+run: prepare-run
 	docker-compose -p letsrest -f prod.docker-compose.yml up -d --build
 
 stop:
