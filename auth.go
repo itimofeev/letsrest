@@ -18,7 +18,10 @@ type Auth struct {
 }
 
 func createUser() *User {
-	return &User{ID: xid.New().String()}
+	return &User{
+		ID:           xid.New().String(),
+		RequestLimit: 1000,
+	}
 }
 
 func createAuthToken(user *User) *Auth {

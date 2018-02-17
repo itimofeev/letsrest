@@ -1,6 +1,7 @@
 package letsrest
 
 import (
+	"math"
 	"strings"
 	"time"
 )
@@ -52,5 +53,13 @@ type ExecStatus struct {
 }
 
 type User struct {
-	ID string `json:"id" bson:"_id"`
+	ID           string `json:"id" bson:"_id"`
+	RequestLimit int    `json:"request_limit" bson:"request_limit"`
+}
+
+func (u *User) GetRequestLimit() int {
+	if u.RequestLimit == 0 {
+		return math.MaxInt32
+	}
+	return u.RequestLimit
 }

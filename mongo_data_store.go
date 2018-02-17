@@ -113,6 +113,15 @@ func (s *MongoDataStore) CreateRequest(user *User, name string) (*Request, error
 
 	c := session.DB("letsrest").C("requests")
 
+	n, err := c.Find(bson.M{"user_id": user.ID}).Count()
+	if err != nil {
+		return nil, err
+	}
+
+	if n+1 > user.GetRequestLimit() {
+		return nil, errors.New("error.saved.request.limit.exceeded")
+	}
+
 	if err := c.Insert(request); err != nil {
 		return nil, err
 	}

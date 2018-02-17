@@ -89,6 +89,14 @@ func Test_MongoDataStore_FailOnExecRequestSimultaneously(t *testing.T) {
 	require.EqualError(t, err, "error.request.already.in.progress")
 }
 
+func Test_MongoDataStore_ShouldLimitRequestCount(t *testing.T) {
+	user := createTestUser(t, 1)
+	_, err := mgStore.CreateRequest(user, "my-cool-name")
+	require.Nil(t, err)
+	_, err = mgStore.CreateRequest(user, "my-cool-name")
+	require.EqualError(t, err, "error.saved.request.limit.exceeded")
+}
+
 func createTestRequest(t *testing.T) *Request {
 	user := createTestUser(t)
 
@@ -99,12 +107,17 @@ func createTestRequest(t *testing.T) *Request {
 	return request
 }
 
-func createTestUser(t *testing.T) *User {
+func createTestUser(t *testing.T, requestLimit ...int) *User {
 	require.NotNil(t, mgStore)
 
 	userId := xid.New().String()
 
-	assert.Nil(t, mgStore.PutUser(&User{ID: userId}))
+	limit := 0
+	if len(requestLimit) > 0 {
+		limit = requestLimit[0]
+	}
+
+	assert.Nil(t, mgStore.PutUser(&User{ID: userId, RequestLimit: limit}))
 
 	user, err := mgStore.GetUser(userId)
 	require.Nil(t, err)
