@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gavv/httpexpect"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 	"net/http"
 	"testing"
+	"time"
 )
 
 var store = NewDataStore(&Config{MongoURL: "192.168.99.100:27017"}, NewWorkerPool(&testRequester{}))
@@ -117,6 +120,38 @@ func TestServer_ExecRequest(t *testing.T) {
 	r.ValueEqual("data", data)
 }
 
+func TestServer_ExecRateLimit(t *testing.T) {
+	auth := createAuth(t)
+	expect := tester(t)
+
+	for n := 0; n < 10; n++ {
+		request := createRequestWithAuth(t, auth)
+		data := RequestData{Method: "hello", URL: "there", Body: "someBody"}
+
+		status := expect.PUT("/api/v1/requests/{ID}", request.ID).
+			WithHeader("Authorization", "Bearer "+auth.AuthToken).
+			WithJSON(data).
+			Expect().Raw().StatusCode
+
+		if status == http.StatusTooManyRequests {
+			return
+		}
+	}
+	assert.Fail(t, "rate limiter not triggered")
+}
+
+func Test_limiter(t *testing.T) {
+	execLimiter := rate.NewLimiter(rate.Every(time.Second), 2)
+
+	assert.True(t, execLimiter.Allow())
+	assert.True(t, execLimiter.Allow())
+	assert.False(t, execLimiter.Allow())
+	assert.False(t, execLimiter.Allow())
+
+	time.Sleep(time.Second)
+	assert.True(t, execLimiter.Allow())
+}
+
 func TestServer_ListUserRequests(t *testing.T) {
 	_, auth := createRequest(t)
 	createRequest(t)
@@ -128,13 +163,17 @@ func TestServer_ListUserRequests(t *testing.T) {
 		JSON().Array().Length().Equal(1)
 }
 
-func createRequest(t *testing.T) (*Request, *Auth) {
+func createAuth(t *testing.T) *Auth {
 	userAndAuthToken := tester(t).POST("/api/v1/authTokens").
 		Expect().
 		Status(http.StatusOK).Body()
 	auth := &Auth{}
 	require.Nil(t, json.Unmarshal([]byte(userAndAuthToken.Raw()), auth))
 
+	return auth
+}
+
+func createRequestWithAuth(t *testing.T, auth *Auth) *Request {
 	request := &Request{Name: "some name"}
 
 	resp := tester(t).POST("/api/v1/requests").
@@ -147,6 +186,12 @@ func createRequest(t *testing.T) (*Request, *Auth) {
 	resp.Object().ValueEqual("name", "some name")
 	resp.Object().ContainsKey("id")
 	request.ID = resp.Object().Value("id").Raw().(string)
+	return request
+}
+
+func createRequest(t *testing.T) (*Request, *Auth) {
+	auth := createAuth(t)
+	request := createRequestWithAuth(t, auth)
 
 	return request, auth
 }

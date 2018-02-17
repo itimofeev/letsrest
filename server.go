@@ -10,31 +10,35 @@ import (
 	"net/http/httputil"
 	"os"
 	"strings"
+	"time"
 )
 
 var secretForJwt = []byte("12345678901234567890") // TODO move to settings
 
 var log = logrus.New()
 
-func NewServer(s DataStore) *Server {
+func NewServer(s DataStore, execLimiter *rate.Limiter) *Server {
 	log.Out = os.Stdout
 	formatter := new(logrus.TextFormatter)
 	formatter.ForceColors = true
 	log.Formatter = formatter
 	log.Level = logrus.DebugLevel
 
-	//anonymLimiter := rate.NewLimiter(rate.Every(time.Duration(200)*time.Millisecond), 5)
-
-	return &Server{store: s}
+	return &Server{
+		store:       s,
+		execLimiter: execLimiter,
+	}
 }
 
 type Server struct {
-	store         DataStore
-	anonymLimiter *rate.Limiter
+	store       DataStore
+	execLimiter *rate.Limiter
 }
 
 func IrisHandler(store DataStore) *iris.Application {
-	srv := NewServer(store)
+	execLimiter := rate.NewLimiter(rate.Every(time.Second), 5)
+
+	srv := NewServer(store, execLimiter)
 	api := iris.New()
 	api.Use(func(ctx context.Context) {
 		d, _ := httputil.DumpRequest(ctx.Request(), true)
@@ -62,7 +66,7 @@ func IrisHandler(store DataStore) *iris.Application {
 		requests := v1.Party("/requests", srv.CheckAuthToken)
 
 		requests.Post("", srv.CreateRequest)
-		requests.Put("/{id:string}", srv.ExecRequest)
+		requests.Put("/{id:string}", srv.RateLimit, srv.ExecRequest)
 		requests.Patch("/{id:string}", srv.EditRequest)
 		requests.Delete("/{id:string}", srv.DeleteRequest)
 		requests.Get("", srv.ListRequests)
@@ -116,6 +120,15 @@ func (s *Server) CheckAuthToken(ctx context.Context) {
 
 	ctx.Values().Set("LetsRestUser", user)
 	ctx.Next()
+}
+
+func (s *Server) RateLimit(ctx context.Context) {
+	if !s.execLimiter.Allow() {
+		ctx.ResponseWriter().Header().Add("Content-Type", "application/json")
+		ctx.ResponseWriter().WriteHeader(http.StatusTooManyRequests)
+		ctx.ResponseWriter().Write([]byte("too many exec request received"))
+		ctx.StopExecution()
+	}
 }
 
 func (s *Server) CreateAuthToken(ctx context.Context) {
